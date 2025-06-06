@@ -6,8 +6,8 @@
 { lib
 , stdenv
 , cmake
-, boost
 , catch2
+, enableTests ? true
 }:
 
 # stdenv.mkDerivation now accepts a list of named parameters that describe
@@ -35,5 +35,5 @@ stdenv.mkDerivation {
   # Instruct the build process to run tests.
   # The generic builder script of `mkDerivation` handles all the default
   # command lines of several build systems, so it knows how to run our tests.
-  doCheck = true;
+  doCheck = enableTests;
 }

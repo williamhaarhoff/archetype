@@ -1,4 +1,7 @@
 cmake_minimum_required(VERSION 3.26)
+set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE)
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 project(archetype
   VERSION 0.0.0
@@ -10,7 +13,7 @@ include_directories(
 
 add_executable(example src/example.cpp)
 
-option(TESTING "Enable tests." ON)
+option(TESTING "Enable tests." OFF)
 
 if(TESTING)
   enable_testing()

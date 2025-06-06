@@ -1,3 +1,4 @@
 build
 result
 .ccls-cache
+compile_commands.json

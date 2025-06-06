@@ -1,5 +1,6 @@
 #include "archetype/archetype.h"
 #include <iostream>
+#include <cstring>
 
 // Concepts
 #if __cplusplus >= 202002L
@@ -35,7 +36,7 @@ template <typename W> class WriteInterface : public W
     if (str == NULL) { return 0; }
     return this->write(str, strlen(str));
   }
-}
+};
 
 template<Readable R>
 class ReadInterface : public R
@@ -78,20 +79,20 @@ class ReadableBase {
 
 
 // Adaptors
-template <Writable W>
+template <Writable T>
 class WritableAdaptor : public WritableBase<> {
   public:
-  WritableAdaptor(W *ptr) : impl(ptr) {}
+  WritableAdaptor(T *ptr) : impl(ptr) {}
   virtual size_t write(const char *buf, size_t size) override { return impl->write(buf, size); }
   private:
-  W *impl;
+  T *impl;
 };
 
 
 template <Readable T>
 class ReadAdaptor : public ReadableBase<> {
   public:
-  ReadWriteAdaptor(W *ptr) : impl(ptr) {}
+  ReadAdaptor(T *ptr) : impl(ptr) {}
   virtual size_t read(char *buf, size_t size) override { return impl->read(buf); }
   private:
   T *impl;
@@ -101,7 +102,7 @@ class ReadAdaptor : public ReadableBase<> {
 template <ReadWrite T>
 class ReadWriteAdaptor : public ReadableBase<WritableBase<>> {
   public:
-  ReadWriteAdaptor(W *ptr) : impl(ptr) {}
+  ReadWriteAdaptor(T *ptr) : impl(ptr) {}
   virtual size_t write(const char *buf, size_t size) override { return impl->write(buf, size); }
   virtual size_t read(char *buf, size_t size) override { return impl->read(buf); }
   private:
@@ -164,10 +165,10 @@ class WriteDependentClass
   void set_port(W * target_port)
   {
     static WritableAdaptor<W> port_adaptor(target_port);
-    port = static_cast<WriteInterface<WritableBase>*>(static_cast<WritableBase*>(&port_adaptor));
+    port = static_cast<WriteInterface<WritableBase<>>*>(static_cast<WritableBase<>*>(&port_adaptor));
   }
 
-  WriteInterface<WritableBase> * port = nullptr;
+  WriteInterface<WritableBase<>> * port = nullptr;
 };
 
 
@@ -178,8 +179,8 @@ int main()
 
   WriteDependentClass wdc;
   wdc.set_port(&nrw);
-  wdc.port->print("hello from writer");
+  wdc.port->write_api("hello from writer");
 
   wdc.set_port(&crw);
-  wdc.port->print("hello from composed read writer!")
+  wdc.port->write_api("hello from composed read writer!");
 }
