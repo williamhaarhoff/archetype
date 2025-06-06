@@ -1,16 +1,14 @@
 cmake_minimum_required(VERSION 3.26)
 
-project(cpp-nix
-  VERSION 1.0
+project(archetype
+  VERSION 0.0.0
   LANGUAGES CXX)
 
-find_package(Boost REQUIRED COMPONENTS system)
+include_directories(
+  include
+)
 
-add_executable(cpp-nix src/main.cpp)
-target_link_libraries(cpp-nix
-  PRIVATE
-  Boost::system)
-
+add_executable(example src/example.cpp)
 
 option(TESTING "Enable tests." ON)
 
@@ -19,4 +17,4 @@ if(TESTING)
   add_subdirectory(test)
 endif()
 
-install(TARGETS cpp-nix DESTINATION bin)
+install(TARGETS example DESTINATION bin)

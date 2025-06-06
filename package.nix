@@ -14,11 +14,12 @@
 # the package itself.
 
 stdenv.mkDerivation {
-  name = "cpp-nix";
+  name = "archetype";
 
   # good source filtering is important for caching of builds.
   # It's easier when subprojects have their own distinct subfolders.
   src = lib.sourceByRegex ./. [
+    "^include.*"
     "^src.*"
     "^test.*"
     "CMakeLists.txt"
@@ -29,7 +30,7 @@ stdenv.mkDerivation {
   # at compile time) and normal `buildInputs` (runnable on target
   # platform at run time) is an important preparation for cross-compilation.
   nativeBuildInputs = [ cmake ];
-  buildInputs = [ boost catch2 ];
+  buildInputs = [ catch2 ];
 
   # Instruct the build process to run tests.
   # The generic builder script of `mkDerivation` handles all the default

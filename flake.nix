@@ -24,7 +24,7 @@
         # The `callPackage` automatically fills the parameters of the function
         # in package.nix with what's inside the `pkgs` attribute.
         packages.default = pkgs.callPackage ./package.nix { };
-        packages.clang = pkgs.callPackage ./package.nix { stdenv = pkgs.clangStdenv; };
+        packages.no-test = pkgs.callPackage ./package.nix { enableTests=false; };
 
         # The `config` variable contains our own outputs, so we can reference
         # neighbor attributes like the package we just defined one line earlier.
