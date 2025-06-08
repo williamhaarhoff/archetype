@@ -11,7 +11,7 @@ include_directories(
   include
 )
 
-add_executable(example src/example.cpp)
+add_executable(archetype src/example.cpp)
 
 option(TESTING "Enable tests." OFF)
 
@@ -20,4 +20,4 @@ if(TESTING)
   add_subdirectory(test)
 endif()
 
-install(TARGETS example DESTINATION bin)
+install(TARGETS archetype DESTINATION bin)
