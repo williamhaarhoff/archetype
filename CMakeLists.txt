@@ -9,6 +9,7 @@ project(archetype
 
 include_directories(
   include
+  src
 )
 
 add_executable(archetype src/example.cpp)

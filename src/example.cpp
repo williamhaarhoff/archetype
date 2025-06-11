@@ -1,4 +1,4 @@
-#include "archetype/archetype.h"
+// #include "example.h"
 #include <iostream>
 #include <cstring>
 
@@ -22,6 +22,7 @@ concept ReadWrite = Readable<T> && Writable<T>;
 #define Readable typename
 #define ReadWrite typename
 #endif
+
 
 
 // Stateless interfaces
@@ -190,37 +191,6 @@ class ReadWriteDependentClass
 };
 
 
-// struct ReadWriteArchetype
-// {
-  
-//   struct ptr
-//   {
-//     private:
-//     using base = ReadableBase<WritableBase<>>;
-//     base b;
-
-//     public:
-//     base* operator->() {return &b; }
-//     base& operator*() { return *operator->(); }
-//   };
-
-// };
-
-
-
-// ARCHETYPE_DEFINE()
-// ARCHETYPE_COMPOSE()
-
-// struct UseA
-// {
-//   template<A::compatible(T)>
-//   void set_port(T & t) { base_port.bind(t); }
-//   A::ptr a;
-// };
-
-
-
-
 template<template<typename> class Interface>
 struct rw_ptr
 {
@@ -241,11 +211,6 @@ struct rw_ptr
 };
 
 
-
-
-
-
-
 int main() 
 {
   Writer nw;
@@ -263,20 +228,6 @@ int main()
   rw_ptr<ReadWriteInterface> ptr;
   ptr.bind(crw);
   ptr->write_api("hello from generic concept ptr!\n", 32);
-
-
-
-
-
-  // wdc.set_port(nw);
-  // wdc.port.write_api("hello from writer", 17);
-  // wdc.set_port(crw);
-  // wdc.port.write_api("hello from writer", 17);
-
-  // rwdc.set_port(crw);
-  
-  
-
 
 
   char buf[4096];
