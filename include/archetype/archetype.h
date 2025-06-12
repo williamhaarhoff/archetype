@@ -2,7 +2,6 @@
 #define __ARCHETYPE_H__
 
 
-
 #define DEFINE_ARCHETYPE(NAME, METHODS)                                          \
   template<typename B = archetype::base>                                         \
   class NAME : public B                                                           \
@@ -105,12 +104,6 @@
 
 
 
-// #define GET_LAST_ARG(...) GET_LAST_ARG_IMPL(__VA_ARGS__,)
-// #define GET_LAST_ARG_IMPL(_1, _2, _3, _4, _5, _6, _7, _8, LAST, ...) LAST
-
-// M_GET_LAST(const char* buf) 
-// GET_ARG_NAMES((const char *buf), (size_t size))
-
 
 #define CAT(a, b) CAT_IMPL(a, b)
 #define CAT_IMPL(a, b) a##b
@@ -135,45 +128,36 @@
 
 #define ARG_NAMES(count, ...) CAT(ARG_NAMES_, count)(__VA_ARGS__)
 
-// #define ARCHETYPE_METHOD2(ret, name, ...)  
-//   ret name TYPED_ARGS(NUM_ARGS(__VA_ARGS__))
-
-
-// ARCHETYPE_METHOD2(size_t, write, const char, size_t)
-
-// TYPED_ARG_0(const char *)
-// ARG_NAMES(NUM_ARGS(const char *, size_t ), const char *, size_t)
-// TYPED_ARGS(NUM_ARGS(const char *, size_t ), const char *, size_t)
-
-
-#define ARCHETYPE_METHOD(ret, name, ...)                                              \
+#define ARCHETYPE_METHOD(unique_name, ret, name, ...)                                              \
   public:                                                                             \
     ret name(TYPED_ARGS(NUM_ARGS(__VA_ARGS__), __VA_ARGS__)) {                       \
-        return _##name##_stub(_obj, ARG_NAMES(NUM_ARGS(__VA_ARGS__), __VA_ARGS__));  \
+        return _##unique_name##_stub(_obj, ARG_NAMES(NUM_ARGS(__VA_ARGS__), __VA_ARGS__));  \
     }
 
-#define CALLSTUB_ASSIGNMENT(ret, name, ...)                                               \
-  _##name##_stub = [](void * obj, TYPED_ARGS(NUM_ARGS(__VA_ARGS__), __VA_ARGS__)) -> ret  \
+#define CALLSTUB_ASSIGNMENT(unique_name, ret, name, ...)                                               \
+  _##unique_name##_stub = [](void * obj, TYPED_ARGS(NUM_ARGS(__VA_ARGS__), __VA_ARGS__)) -> ret  \
   {                                                                                       \
     return static_cast<T*>(obj)->name(ARG_NAMES(NUM_ARGS(__VA_ARGS__), __VA_ARGS__));     \
   }
 
-#define CALLSTUB_MEMBER(ret, name, ...)                                               \
-  ret (*_##name##_stub)(void * obj, __VA_ARGS__);
+#define CALLSTUB_MEMBER(unique_name, ret, name, ...)                                               \
+  ret (*_##unique_name##_stub)(void * obj, __VA_ARGS__);
 
   
 
-  
+#define UNIQUE_NAME(base) CAT(base, __LINE__)
 
+#define DEFINE_METHOD(ret, name, ...) (UNIQUE_NAME(name), ret, name, __VA_ARGS__)
 
-
+// DEFINE_METHOD(size_t, write, const char *, size_t)
 
 
 DEFINE_ARCHETYPE(Writable, (
-  (size_t, write, const char *, size_t)
-  ,(size_t, write, const char *)
-  // ,(size_t, write2, const char *buf, size_t size)
-));
+  DEFINE_METHOD(size_t, write, const char *, size_t),  
+  DEFINE_METHOD(size_t, write, const char *)
+))
+
+
 
 // #define ARCHETYPE_METHOD_FORWARDED(ret, name, ...)                               \
 //   virtual ret name(__VA_ARGS__) override { return impl->name(__VA_ARGS__); }
