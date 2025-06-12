@@ -1,6 +1,7 @@
 // #include "example.h"
 #include <iostream>
 #include <cstring>
+#include "archetype/archetype.h"
 
 // Concepts
 #if __cplusplus >= 202002L
@@ -211,6 +212,35 @@ struct rw_ptr
 };
 
 
+DEFINE_ARCHETYPE(Writable2, (
+  DEFINE_METHOD(size_t, write, const char *, size_t)
+))
+
+struct ReadWriteArchetype
+{
+  // using compat = ReadWrite;
+  using base = ReadableBase<WritableBase<>>;
+
+  template<template<typename> class Interface>
+  struct ptr
+  {
+    private:
+    using T = Interface<ReadableBase<WritableBase<>>>;
+    T impl;
+
+    public:
+    template<ReadWrite RW>
+    void bind(RW & ref) { impl.bind(ref); }
+
+    T & operator*() { return &impl;}
+    const T & operator*() const { return &impl;}
+
+    T * operator->() { return &impl; }
+    const T * operator->() const { return &impl; }
+  };
+};
+
+
 int main() 
 {
   Writer nw;
@@ -225,9 +255,15 @@ int main()
   augmented_writer.write_api("hello from augmented writer with write api\n", 43);
 
   // generic concept ptr
-  rw_ptr<ReadWriteInterface> ptr;
+  
+  ReadWriteArchetype::ptr<ReadWriteInterface> ptr;
   ptr.bind(crw);
   ptr->write_api("hello from generic concept ptr!\n", 32);
+
+
+  WriteInterface<Writable2<>> writable2_base;
+  writable2_base.bind(nw);
+  writable2_base.write_api("hello from macro generated write api!\n", 39); 
 
 
   char buf[4096];

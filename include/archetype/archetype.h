@@ -2,15 +2,30 @@
 #define __ARCHETYPE_H__
 
 
-#define DEFINE_ARCHETYPE(NAME, METHODS)                                          \
-  template<typename B = archetype::base>                                         \
+namespace archetype
+{
+  class Base
+  {
+    public:
+    virtual ~Base() {};
+    
+    template<typename T>
+    void bind(T & t) { _obj = static_cast<void *>(&t); }
+
+    protected:
+    void * _obj;
+  };
+}
+
+#define DEFINE_ARCHETYPE(NAME, METHODS)                                           \
+  template<typename B = archetype::Base>                                          \
   class NAME : public B                                                           \
   {                                                                               \
     EXPAND_ARCHETYPE_METHODS(METHODS)                                             \
     public: template<typename T>                                                  \
     void bind(T & t)                                                              \
     {                                                                             \
-      this->T::bind(w);                                                           \
+      this->B::bind(t);                                                           \
       EXPAND_CALLSTUB_ASSIGNMENTS(METHODS)                                        \
     }                                                                             \
     protected:                                                                    \
@@ -138,24 +153,26 @@
   _##unique_name##_stub = [](void * obj, TYPED_ARGS(NUM_ARGS(__VA_ARGS__), __VA_ARGS__)) -> ret  \
   {                                                                                       \
     return static_cast<T*>(obj)->name(ARG_NAMES(NUM_ARGS(__VA_ARGS__), __VA_ARGS__));     \
-  }
+  };
 
 #define CALLSTUB_MEMBER(unique_name, ret, name, ...)                                               \
   ret (*_##unique_name##_stub)(void * obj, __VA_ARGS__);
 
   
 
-#define UNIQUE_NAME(base) CAT(base, __LINE__)
+#define UNIQUE_NAME(base) CAT(CAT(CAT(CAT(base, _), __LINE__), _), __COUNTER__)
 
 #define DEFINE_METHOD(ret, name, ...) (UNIQUE_NAME(name), ret, name, __VA_ARGS__)
 
 // DEFINE_METHOD(size_t, write, const char *, size_t)
+// DEFINE_METHOD(size_t, write, const char *, size_t)
+// DEFINE_METHOD(size_t, write, const char *)
 
 
-DEFINE_ARCHETYPE(Writable, (
-  DEFINE_METHOD(size_t, write, const char *, size_t),  
-  DEFINE_METHOD(size_t, write, const char *)
-))
+
+// DEFINE_ARCHETYPE(Writable2, (
+//   DEFINE_METHOD(size_t, write, const char *, size_t)
+// ))
 
 
 
