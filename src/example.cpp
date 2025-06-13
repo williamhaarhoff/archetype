@@ -220,6 +220,8 @@ struct ReadWriteArchetype
 {
   // using compat = ReadWrite;
   using base = ReadableBase<WritableBase<>>;
+  
+
 
   template<template<typename> class Interface>
   struct ptr
@@ -255,15 +257,22 @@ int main()
   augmented_writer.write_api("hello from augmented writer with write api\n", 43);
 
   // generic concept ptr
+  ReadWriteInterface<ReadWriteArchetype::base> base;
+  base.bind(crw);
+  base.write_api("hello from generic concept base!\n", 32);
   
   ReadWriteArchetype::ptr<ReadWriteInterface> ptr;
   ptr.bind(crw);
   ptr->write_api("hello from generic concept ptr!\n", 32);
 
 
-  WriteInterface<Writable2<>> writable2_base;
+  WriteInterface<Writable2::base<>> writable2_base;
   writable2_base.bind(nw);
   writable2_base.write_api("hello from macro generated write api!\n", 39); 
+
+  Writable2::ptr<WriteInterface> writable2_ptr;
+  writable2_ptr.bind(nw);
+  writable2_ptr->write_api("hello from macro generated ptr write api\n", 41);
 
 
   char buf[4096];

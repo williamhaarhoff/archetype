@@ -17,20 +17,45 @@ namespace archetype
   };
 }
 
-#define DEFINE_ARCHETYPE(NAME, METHODS)                                           \
-  template<typename B = archetype::Base>                                          \
-  class NAME : public B                                                           \
-  {                                                                               \
-    EXPAND_ARCHETYPE_METHODS(METHODS)                                             \
-    public: template<typename T>                                                  \
-    void bind(T & t)                                                              \
-    {                                                                             \
-      this->B::bind(t);                                                           \
-      EXPAND_CALLSTUB_ASSIGNMENTS(METHODS)                                        \
-    }                                                                             \
-    protected:                                                                    \
-    using B::_obj;                                                                \
-    EXPAND_CALLSTUB_MEMBERS(METHODS)                                              \
+#define ARCHETYPE_COMPATIBLE(T, A)
+
+
+
+#define DEFINE_ARCHETYPE(NAME, METHODS)                                             \
+  struct NAME                                                                       \
+  {                                                                                 \
+    template<typename B = archetype::Base>                                          \
+    class base : public B                                                           \
+    {                                                                               \
+      EXPAND_ARCHETYPE_METHODS(METHODS)                                             \
+      public: template<typename T>                                                  \
+      void bind(T & t)                                                              \
+      {                                                                             \
+        this->B::bind(t);                                                           \
+        EXPAND_CALLSTUB_ASSIGNMENTS(METHODS)                                        \
+      }                                                                             \
+      protected:                                                                    \
+      using B::_obj;                                                                \
+      EXPAND_CALLSTUB_MEMBERS(METHODS)                                              \
+    };                                                                              \
+                                                                                    \
+    template<template<typename> class Interface>                                    \
+    class ptr                                                                       \
+    {                                                                               \
+      private:                                                                      \
+      using T = Interface<base<>>;                                                  \
+      T impl;                                                                       \
+                                                                                    \
+      public:                                                                       \
+      template<typename CONCEPT>                                                    \
+      void bind(CONCEPT & ref) { impl.bind(ref); }                                  \
+                                                                                    \
+      T& operator*() { return &impl;}                                               \
+      const T& operator*() const { return &impl;}                                   \
+                                                                                    \
+      T* operator->() { return &impl; }                                             \
+      const T* operator->() const { return &impl; }                                 \
+    };                                                                              \
   };
 
 #define EXPAND_ARCHETYPE_METHODS(METHODS)                                \
