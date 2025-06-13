@@ -127,9 +127,18 @@ namespace archetype
 
 
 
-// count arguments
-#define M_NARGS(...) M_NARGS_(__VA_ARGS__, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)
+// count arguments - ##__VA_ARGS__ is not portable
+#define M_NARGS(...) M_NARGS_(dummy, ##__VA_ARGS__, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)
 #define M_NARGS_(_10, _9, _8, _7, _6, _5, _4, _3, _2, _1, N, ...) N
+
+// has arguments - ##__VA_ARGS__ is not portable
+#define HAS_ARGS(...) HAS_ARGS_IMPL(dummy, ##__VA_ARGS__, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0)
+#define HAS_ARGS_IMPL(_1,_2,_3,_4,_5,_6,_7,_8,_9,_10, N,...) N
+#define COMMA_IF_ARGS(...) COMMA_IF_ARGS_IMPL(HAS_ARGS(__VA_ARGS__))
+#define COMMA_IF_ARGS_IMPL(has_args) M_CONC(COMMA_IF_ARGS_, has_args)
+#define COMMA_IF_ARGS_1 ,
+#define COMMA_IF_ARGS_0
+
 
 // utility (concatenation)
 #define M_CONC(A, B) M_CONC_(A, B)
@@ -161,6 +170,7 @@ namespace archetype
 #define NUM_ARGS(...) NUM_ARGS_IMPL(__VA_ARGS__, 5,4,3,2,1,0)
 #define NUM_ARGS_IMPL(_1,_2,_3,_4,_5,N,...) N
 
+#define TYPED_ARG_0() 
 #define TYPED_ARG_1(t0) t0 arg0
 #define TYPED_ARG_2(t0,t1) t0 arg0, t1 arg1
 #define TYPED_ARG_3(t0,t1,t2) t0 arg0, t1 arg1, t2 arg2
@@ -169,6 +179,7 @@ namespace archetype
 
 #define TYPED_ARGS(count, ...) CAT(TYPED_ARG_, count)(__VA_ARGS__)
 
+#define ARG_NAMES_0()
 #define ARG_NAMES_1(t0) arg0
 #define ARG_NAMES_2(t0,t1) arg0, arg1
 #define ARG_NAMES_3(t0,t1,t2) arg0, arg1, arg2
@@ -179,24 +190,25 @@ namespace archetype
 
 #define ARCHETYPE_METHOD(unique_name, ret, name, ...)                                              \
   public:                                                                             \
-    ret name(TYPED_ARGS(NUM_ARGS(__VA_ARGS__), __VA_ARGS__)) {                       \
-        return _##unique_name##_stub(_obj, ARG_NAMES(NUM_ARGS(__VA_ARGS__), __VA_ARGS__));  \
+    ret name(TYPED_ARGS(M_NARGS(__VA_ARGS__), __VA_ARGS__)) {                       \
+      return _##unique_name##_stub(_obj COMMA_IF_ARGS(__VA_ARGS__) ARG_NAMES(M_NARGS(__VA_ARGS__), __VA_ARGS__));  \
     }
 
 #define CALLSTUB_ASSIGNMENT(unique_name, ret, name, ...)                                               \
-  _##unique_name##_stub = [](void * obj, TYPED_ARGS(NUM_ARGS(__VA_ARGS__), __VA_ARGS__)) -> ret  \
+  _##unique_name##_stub = [](void * obj COMMA_IF_ARGS(__VA_ARGS__) TYPED_ARGS(M_NARGS(__VA_ARGS__), __VA_ARGS__)) -> ret  \
   {                                                                                       \
-    return static_cast<T*>(obj)->name(ARG_NAMES(NUM_ARGS(__VA_ARGS__), __VA_ARGS__));     \
+    return static_cast<T*>(obj)->name(ARG_NAMES(M_NARGS(__VA_ARGS__), __VA_ARGS__));     \
   };
 
+// uses comma swallowing trick
 #define CALLSTUB_MEMBER(unique_name, ret, name, ...)                                               \
-  ret (*_##unique_name##_stub)(void * obj, __VA_ARGS__);
+  ret (*_##unique_name##_stub)(void * obj, ##__VA_ARGS__);
 
 
 #define CONCEPT_REQUIREMENT(unique_name, ret, name, ...)                                                \
-  && requires(T t, TYPED_ARGS(NUM_ARGS(__VA_ARGS__), __VA_ARGS__))                                      \
+  && requires(T t, TYPED_ARGS(M_NARGS(__VA_ARGS__), __VA_ARGS__))                                      \
   {                                                                                                     \
-    { t.name(ARG_NAMES(NUM_ARGS(__VA_ARGS__), __VA_ARGS__))} -> std::convertible_to<ret>;             \
+    { t.name(ARG_NAMES(M_NARGS(__VA_ARGS__), __VA_ARGS__))} -> std::convertible_to<ret>;             \
   }
 
 #define UNIQUE_NAME(base) CAT(CAT(CAT(CAT(base, _), __LINE__), _), __COUNTER__)
@@ -204,10 +216,18 @@ namespace archetype
 #define DEFINE_METHOD(ret, name, ...) (UNIQUE_NAME(name), ret, name, __VA_ARGS__)
 
 
-// NUM_ARGS()
+
+
+// COMMA_IF_ARGS()
+// COMMA_IF_ARGS(1)
+// COMMA_IF_ARGS(2)
+
+// COUNT_ARGS()
+// COUNT_ARGS(a)
+// COUNT_ARGS(b, c)
 
 // DEFINE_ARCHETYPE(Writable2, (
-//   // DEFINE_METHOD(size_t, void_meth)
+//   DEFINE_METHOD(size_t, meth),
 //   DEFINE_METHOD(size_t, write, const char *, size_t),
 //   DEFINE_METHOD(size_t, write2, const char *, size_t)
 // ))
