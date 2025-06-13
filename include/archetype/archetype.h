@@ -17,13 +17,18 @@ namespace archetype
   };
 }
 
-#define ARCHETYPE_COMPATIBLE(T, A)
+// #define ARCHETYPE_COMPATIBLE(T, A)
 
 
+
+    
+// template<typename T>                                                            \
+    // concept cpt = true EXPAND_CONCEPT_REQUIREMENTS(METHODS);                        \
 
 #define DEFINE_ARCHETYPE(NAME, METHODS)                                             \
   struct NAME                                                                       \
   {                                                                                 \
+                                                                                    \
     template<typename B = archetype::Base>                                          \
     class base : public B                                                           \
     {                                                                               \
@@ -78,6 +83,11 @@ namespace archetype
 #define EXPAND_CALLSTUB_MEMBERS_IMPL(...)                               \
   FOR_EACH(CALLSTUB_MEMBER, __VA_ARGS__)
 
+#define EXPAND_CONCEPT_REQUIREMENTS(METHODS)                                \
+  EXPAND_CONCEPT_REQUIREMENTS_IMPL METHODS
+
+#define EXPAND_CONCEPT_REQUIREMENTS_IMPL(...)                               \
+  FOR_EACH(CONCEPT_REQUIREMENT, __VA_ARGS__)
 
 #define EXPAND(x) x
 #define EXPAND2(x) EXPAND(EXPAND(x))
@@ -159,7 +169,6 @@ namespace archetype
 
 #define TYPED_ARGS(count, ...) CAT(TYPED_ARG_, count)(__VA_ARGS__)
 
-
 #define ARG_NAMES_1(t0) arg0
 #define ARG_NAMES_2(t0,t1) arg0, arg1
 #define ARG_NAMES_3(t0,t1,t2) arg0, arg1, arg2
@@ -183,27 +192,36 @@ namespace archetype
 #define CALLSTUB_MEMBER(unique_name, ret, name, ...)                                               \
   ret (*_##unique_name##_stub)(void * obj, __VA_ARGS__);
 
-  
+
+#define CONCEPT_REQUIREMENT(unique_name, ret, name, ...)                                                \
+  && requires(T t, TYPED_ARGS(NUM_ARGS(__VA_ARGS__), __VA_ARGS__))                                      \
+  {                                                                                                     \
+    { t.name(ARG_NAMES(NUM_ARGS(__VA_ARGS__), __VA_ARGS__))} -> std::convertible_to<ret>;             \
+  }
 
 #define UNIQUE_NAME(base) CAT(CAT(CAT(CAT(base, _), __LINE__), _), __COUNTER__)
 
 #define DEFINE_METHOD(ret, name, ...) (UNIQUE_NAME(name), ret, name, __VA_ARGS__)
 
-// DEFINE_METHOD(size_t, write, const char *, size_t)
-// DEFINE_METHOD(size_t, write, const char *, size_t)
-// DEFINE_METHOD(size_t, write, const char *)
 
-
+// NUM_ARGS()
 
 // DEFINE_ARCHETYPE(Writable2, (
-//   DEFINE_METHOD(size_t, write, const char *, size_t)
+//   // DEFINE_METHOD(size_t, void_meth)
+//   DEFINE_METHOD(size_t, write, const char *, size_t),
+//   DEFINE_METHOD(size_t, write2, const char *, size_t)
 // ))
 
+// #define EXPAND_CONCAT_ARGS(METHODS)                                \
+//   EXPAND_CONCAT_ARGS_IMPL METHODS
+
+// #define EXPAND_CONCAT_ARGS_IMPL(...)                               \
+//   FOR_EACH(DROP2, __VA_ARGS__)
+
+// #define DROP2(_1, _2, ...) __VA_ARGS__
+// #define PROCESS_ONE(tuple) DROP2 tuple
 
 
-// #define ARCHETYPE_METHOD_FORWARDED(ret, name, ...)                               \
-//   virtual ret name(__VA_ARGS__) override { return impl->name(__VA_ARGS__); }
-
-
+// FLATTEN_ARGS(((size_t, write, int, char), (size_t, write, int, char)))
 
 #endif //__ARCHETYPE_H__
