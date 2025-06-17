@@ -273,6 +273,7 @@ void check_exact_concept() {
 }
 
 
+
 template<typename, typename = void>
 struct has_void_foo : std::false_type {};
 

@@ -1,6 +1,7 @@
 #ifndef __ARCHETYPE_H__
 #define __ARCHETYPE_H__
 
+// #include <type_traits>
 
 namespace archetype
 {
@@ -21,40 +22,45 @@ namespace archetype
   struct NAME                                                                       \
   {                                                                                 \
                                                                                     \
-                                                                                    \
-    template<typename B = archetype::Base>                                          \
-    class base : public B                                                           \
+    struct validate                                                                 \
     {                                                                               \
-      EXPAND_ARCHETYPE_METHODS(METHODS)                                             \
-      public: template<typename T>                                                  \
-      void bind(T & t)                                                              \
-      {                                                                             \
-        this->B::bind(t);                                                           \
-        EXPAND_CALLSTUB_ASSIGNMENTS(METHODS)                                        \
-      }                                                                             \
-      protected:                                                                    \
-      using B::_obj;                                                                \
-      EXPAND_CALLSTUB_MEMBERS(METHODS)                                              \
+      EXPAND_CONCEPT_REQUIREMENTS(METHODS)                                          \
     };                                                                              \
-                                                                                    \
-    template<template<typename> class Interface>                                    \
-    class ptr                                                                       \
-    {                                                                               \
-      private:                                                                      \
-      using T = Interface<base<>>;                                                  \
-      T impl;                                                                       \
-                                                                                    \
-      public:                                                                       \
-      template<typename CONCEPT>                                                    \
-      void bind(CONCEPT & ref) { impl.bind(ref); }                                  \
-                                                                                    \
-      T& operator*() { return &impl;}                                               \
-      const T& operator*() const { return &impl;}                                   \
-                                                                                    \
-      T* operator->() { return &impl; }                                             \
-      const T* operator->() const { return &impl; }                                 \
-    };                                                                              \
-  };
+  };                                                                                    
+  //                                                                                   \
+  //   template<typename B = archetype::Base>                                          \
+  //   class base : public B                                                           \
+  //   {                                                                               \
+  //     EXPAND_ARCHETYPE_METHODS(METHODS)                                             \
+  //     public: template<typename T>                                                  \
+  //     void bind(T & t)                                                              \
+  //     {                                                                             \
+  //       this->B::bind(t);                                                           \
+  //       EXPAND_CALLSTUB_ASSIGNMENTS(METHODS)                                        \
+  //     }                                                                             \
+  //     protected:                                                                    \
+  //     using B::_obj;                                                                \
+  //     EXPAND_CALLSTUB_MEMBERS(METHODS)                                              \
+  //   };                                                                              \
+  //                                                                                   \
+  //   template<template<typename> class Interface>                                    \
+  //   class ptr                                                                       \
+  //   {                                                                               \
+  //     private:                                                                      \
+  //     using T = Interface<base<>>;                                                  \
+  //     T impl;                                                                       \
+  //                                                                                   \
+  //     public:                                                                       \
+  //     template<typename CONCEPT>                                                    \
+  //     void bind(CONCEPT & ref) { impl.bind(ref); }                                  \
+  //                                                                                   \
+  //     T& operator*() { return &impl;}                                               \
+  //     const T& operator*() const { return &impl;}                                   \
+  //                                                                                   \
+  //     T* operator->() { return &impl; }                                             \
+  //     const T* operator->() const { return &impl; }                                 \
+  //   };                                                                              \
+  // };
 
 #define EXPAND_ARCHETYPE_METHODS(METHODS)                                \
   EXPAND_ARCHETYPE_METHODS_IMPL METHODS
@@ -76,17 +82,19 @@ namespace archetype
 #define EXPAND_CALLSTUB_MEMBERS_IMPL(...)                               \
   FOR_EACH(CALLSTUB_MEMBER, __VA_ARGS__)
 
+
 #define EXPAND_CONCEPT_REQUIREMENTS(METHODS)                                \
   EXPAND_CONCEPT_REQUIREMENTS_IMPL METHODS
 
 #define EXPAND_CONCEPT_REQUIREMENTS_IMPL(...)                               \
   FOR_EACH(CONCEPT_REQUIREMENT, __VA_ARGS__)
 
+
 #define EXPAND(x) x
-#define EXPAND2(x) EXPAND(EXPAND(x))
+// #define EXPAND2(x) EXPAND(EXPAND(x))
 
 #define FOR_EACH(M, ...)                                                       \
-  EXPAND2(GET_MACRO(__VA_ARGS__, FE10, FE9, FE8, FE7, FE6, FE5, FE4, FE3, FE2, \
+  EXPAND(GET_MACRO(__VA_ARGS__, FE10, FE9, FE8, FE7, FE6, FE5, FE4, FE3, FE2, \
                     FE1)(M, __VA_ARGS__))
 
 #define GET_MACRO(_1, _2, _3, _4, _5, _6, _7, _8, _9, _10, NAME, ...) NAME
@@ -198,11 +206,16 @@ namespace archetype
   ret (*_##unique_name##_stub)(void * obj, ##__VA_ARGS__);
 
 
+
 #define CONCEPT_REQUIREMENT(unique_name, ret, name, ...)                                                \
-  && requires(T t COMMA_IF_ARGS(__VA_ARGS__) TYPED_ARGS(M_NARGS(__VA_ARGS__), __VA_ARGS__))                                      \
-  {                                                                                                     \
-    { t.name(ARG_NAMES(M_NARGS(__VA_ARGS__), __VA_ARGS__))} -> std::convertible_to<ret>;             \
-  }
+  template<typename, typename=void> struct CAT(has_, unique_name) : std::false_type {};                 \
+  template<typename T>                                                                                  \
+  struct CAT(has_, unique_name)<T, std::void_t<decltype(static_cast<ret (T::*)(TYPED_ARGS(M_NARGS(__VA_ARGS__), __VA_ARGS__))>(&T::name))>> : std::true_type {};
+
+
+#define TEMP_HEADER template<typename,typename=void>
+
+
 
 #define UNIQUE_NAME(base) CAT(CAT(CAT(CAT(base, _), __LINE__), _), __COUNTER__)
 
@@ -219,9 +232,14 @@ namespace archetype
 // COUNT_ARGS(a)
 // COUNT_ARGS(b, c)
 
-// DEFINE_ARCHETYPE(Writable3, (
-//   DEFINE_METHOD(size_t, write, const char *, size_t)
-// ))
+DEFINE_ARCHETYPE(Writable3, (
+  DEFINE_METHOD(size_t, write, const char *, size_t),
+  DEFINE_METHOD(size_t, write)
+))
+
+
+
+
 
 // #define EXPAND_CONCAT_ARGS(METHODS)                                \
 //   EXPAND_CONCAT_ARGS_IMPL METHODS
