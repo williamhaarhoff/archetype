@@ -25,7 +25,6 @@ concept ReadWrite = Readable<T> && Writable<T>;
 #endif
 
 
-
 // Stateless interfaces
 template <typename W> class WriteInterface : public W 
 {
@@ -243,8 +242,86 @@ struct ReadWriteArchetype
 };
 
 
+
+
+#include <type_traits>
+
+// Trait to detect if T has a member function void foo(int)
+template <typename, typename = std::void_t<>>
+struct has_foo : std::false_type {};
+
+template <typename T>
+struct has_foo<T, std::void_t<decltype(std::declval<T>().foo(std::declval<const int *>()))>>
+    : std::is_same<void, decltype(std::declval<T>().foo(std::declval<const int *>()))> {};
+
+// Concept-like check
+template <typename T>
+void check_concept() {
+    static_assert(has_foo<T>::value, "T must have a method void foo(int)");
+}
+
+
+template<typename, typename = void>
+struct has_exact_foo : std::false_type {};
+
+template<typename T>
+struct has_exact_foo<T, std::void_t<decltype(static_cast<void (T::*)(const int *)>(&T::foo))>> : std::true_type {};
+
+template <typename T>
+void check_exact_concept() {
+    static_assert(has_exact_foo<T>::value, "T must have a method void foo(const int *)");
+}
+
+
+template<typename, typename = void>
+struct has_void_foo : std::false_type {};
+
+template<typename T>
+struct has_void_foo<T, std::void_t<decltype(static_cast<void (T::*)()>(&T::foo))>> : std::true_type {};
+
+template <typename T>
+void check_exact_void_foo_concept() {
+    static_assert(has_void_foo<T>::value, "T must have a method void foo()");
+}
+
+
+struct VoidFoo
+{
+  void foo();
+};
+
+struct Good {
+    void foo(const int *) {}
+};
+
+struct Bad {
+    void foo(int *) {}
+};
+
+
+
+
+
+
+
+
 int main() 
 {
+  if (__cplusplus == 202302L) std::cout << "C++23";
+  else if (__cplusplus == 202002L) std::cout << "C++20";
+  else if (__cplusplus == 201703L) std::cout << "C++17";
+  else if (__cplusplus == 201402L) std::cout << "C++14";
+  else if (__cplusplus == 201103L) std::cout << "C++11";
+  else if (__cplusplus == 199711L) std::cout << "C++98";
+  else std::cout << "pre-standard C++." << __cplusplus;
+  std::cout << "\n";
+
+
+  check_exact_concept<Good>();
+  // check_exact_concept<Bad>();
+  check_exact_void_foo_concept<VoidFoo>();
+  
+  
   Writer nw;
   ComposedReadWriter crw;
 

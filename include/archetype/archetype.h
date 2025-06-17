@@ -17,17 +17,10 @@ namespace archetype
   };
 }
 
-// #define ARCHETYPE_COMPATIBLE(T, A)
-
-
-
-    
-// template<typename T>                                                            \
-    // concept cpt = true EXPAND_CONCEPT_REQUIREMENTS(METHODS);                        \
-
 #define DEFINE_ARCHETYPE(NAME, METHODS)                                             \
   struct NAME                                                                       \
   {                                                                                 \
+                                                                                    \
                                                                                     \
     template<typename B = archetype::Base>                                          \
     class base : public B                                                           \
@@ -206,7 +199,7 @@ namespace archetype
 
 
 #define CONCEPT_REQUIREMENT(unique_name, ret, name, ...)                                                \
-  && requires(T t, TYPED_ARGS(M_NARGS(__VA_ARGS__), __VA_ARGS__))                                      \
+  && requires(T t COMMA_IF_ARGS(__VA_ARGS__) TYPED_ARGS(M_NARGS(__VA_ARGS__), __VA_ARGS__))                                      \
   {                                                                                                     \
     { t.name(ARG_NAMES(M_NARGS(__VA_ARGS__), __VA_ARGS__))} -> std::convertible_to<ret>;             \
   }
@@ -226,10 +219,8 @@ namespace archetype
 // COUNT_ARGS(a)
 // COUNT_ARGS(b, c)
 
-// DEFINE_ARCHETYPE(Writable2, (
-//   DEFINE_METHOD(size_t, meth),
-//   DEFINE_METHOD(size_t, write, const char *, size_t),
-//   DEFINE_METHOD(size_t, write2, const char *, size_t)
+// DEFINE_ARCHETYPE(Writable3, (
+//   DEFINE_METHOD(size_t, write, const char *, size_t)
 // ))
 
 // #define EXPAND_CONCAT_ARGS(METHODS)                                \
