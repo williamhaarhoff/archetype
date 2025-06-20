@@ -9,4 +9,4 @@ intellisense:
     jq -s add build/compile_commands.json > compile_commands.json 
 
 run:
-  ./build/example
+  ./build/archetype
