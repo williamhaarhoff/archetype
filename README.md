@@ -2,6 +2,8 @@
 
 # Archetype
 
+## WARNING -- STILL UNDER CONSTRUCTION 
+
 > **Concept based type erasure for C++11 without inheritance or dynamic allocation.**
 
 **Archetype** is a lightweight header only library for creating **type erased**, **concept driven interfaces** without traditional inheritance, or dynamic memory. It enables **modular**, **reusable** and **low coupling** APIs by letting you bind objects to **archetypes** which are compile time verified interface specifications. 
@@ -49,7 +51,7 @@ class BC : public B, public C {};
 ```
 We can refer `AB` and `AC` with an `A` base pointer. Or `AC` and `BC` with a `C` base pointer. But if we want to refer to any object that implements both `A` and `C` like `ABC` or `ACD`?
 
-With both inheritance you:
+With inheritance you:
 - Lose composability
 - Struggle to find a common base
 - Risk coupling, and rigid hierarchies
@@ -85,7 +87,7 @@ abd_view.bind(abd);
 abc_view.a();
 abd_view.b(5);
 ```
-You now have a **type erased**, **composable**, **zero overhead** reference to any object that *implements* the interface regardless of its type or hierarchy. 
+You now have a **type erased**, **composable**, **low overhead** reference to any object that *implements* the interface regardless of its type or hierarchy. 
 
 ## How Archetype Compares
 | Feature                           | Inheritance  | CRTP | std::function | Archetype         |
