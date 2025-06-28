@@ -1,168 +1,138 @@
 ![](docs/archetype.png)
 
-# What?
-Archetype allows creating "concept base pointers" to any type that implements a given concept. Providing significantly more reusable, modular, interfaces with less coupling than available
-through typical inheritance. Often inheritance gets uses when composition should have been used instead. Archetype was designed to keep inheritance clean and modular without resorting to composition. 
+# Archetype
 
-# Features
+> **Concept based type erasure for C++11 without inheritance or dynamic allocation.**
+
+**Archetype** is a lightweight header only library for creating **type erased**, **concept driven interfaces** without traditional inheritance, or dynamic memory. It enables **modular**, **reusable** and **low coupling** APIs by letting you bind objects to **archetypes** which are compile time verified interface specifications. 
+
+This makes **Archetype** a practical alternative to **inheritance**, **std::function**, or **CRTP**, especially when refactoring legacy systems or building portable, flexible libraries.
+
+
+## Features
 - Single file, header only library
-- zero dependencies
-- C++11 compatible
-- GCC, Clang, MSVC? compatible
+- Zero dependencies
 - No dynamic memory allocation
-- Fast. Uses static dispatch 
-- Highly modular
-- Manual vtable generation (automated through macros)
-- Concept like type checking with SFINAE
-- Ideal for improving flexibility of existing inheritance based interfaces without breaking APIs
+- Static dispatch (no virtuals)
+- C++11 Compatible
+- GCC, Clang, MSVC compatible
+- SFINAE based concept checking
+- Works with existing types (no base class required)
+- Composable interfaces (build *views* from parts)
+- Great for embedded, plugin, and systems-level code
+
   
-# Why?
-I stumbled across this pattern while refactoring inheritance based interfaces. I believe its powerful tool, keeping the benefits of inheritance, and bypassing its issues. Ultimately leading to much more modular, and flexible inheritance like interfaces. 
+## Why Archetype?
+Inheritance is often overused when **composition** or **concepts** would have been more appropriate. However, alternatives to inheritance often mean losing the ability to use clean, type erased interfaces. 
 
-# Problems with Inheritance
-### What inheritance promises
-Inheritance is apealling for creating interfaces because it promises us:
- - A common way of inerfacing with many different derived types, using base pointers/references.
- - Clean type erased interfaces. As long as your class derives from the base, you can substitute it into the interface. No templates, adaptors, are required to specialise the api to your derived type. 
+Archetype fills this gap:
+- Like inheritance, it allows **clean interface substitution**
+- Like composition, it avoids rigid hierarchies
+- Like concepts, it expresses **interface intent** clearly
+- Like std::function it allows **type erased binding**
+- But unlike any of these **TODO** 
 
-### Where inheritance fails
-Unfortunately good intentions often turn to poor compromises, and rigid inheritance hierachies. I find the following example to highlight where inheritance fails us:
 
-- `class AB` should have methods `void a()`, and `int b(int)`
-- `class AC` should have methods `void a()`, and `double c(double)`
-  
-We can do something like:
+## The Inheritance Problem
+Inheritance gives you base pointers and dynamic dispatch, but at a cost:
+### Example
+Suppose you want to reuse parts of `A`, `B`, `C`. 
+
 ```cpp
-class A { public: void a(); };
-class AB : public A { public: int b(int); };        // inherits from A
-class AC : public A { public: double c(double); };  // inherits from A
+class A { void a(); };
+class B { int b(int); };
+class C { double c(double); };
+
+class AB : public A, public B {};
+class AC : public A, public C {};
+class BC : public B, public C {};
 ```
-We now need to introduce `class BC` which should use the same `int b(int)`
-method and `double c(double)` methods as class `AB` and class `AC` use. Solutions are:
-1. **Compromise**: Duplicate methods `int b(int)` and `double c(double)` into a new class with no relation to either `AB` or `AC`.
-   ```cpp
-   class BC { public: int b(int); double c(double); }; // gross
-   ```
+We can refer `AB` and `AC` with an `A` base pointer. Or `AC` and `BC` with a `C` base pointer. But if we want to refer to any object that implements both `A` and `C` like `ABC` or `ACD`?
 
-2. **Use Composition**: Define objects `A` `B` and `C` with their respective methods. Compose classes `AB`, `AC`, and `BC` with their respective members:
-   ```cpp
-   class A {public: void a(); };
-   class B {public: int b(int); };
-   class C {public: double c(double); };
-   class AB {public: A a; B b; };           // composed from A and B
-   class AC {public: A a; C c; };           // composed from A and C
-   class BC {public: B b; C c; };           // composed from B and C
-   ```
-   We regain flexibility, and decrese coupling. This is still a compromise, as we loose all common bases and way to refer to objects that contain A's or B's or C's. 
+With both inheritance you:
+- Lose composability
+- Struggle to find a common base
+- Risk coupling, and rigid hierarchies
+- Risk diamond problems (in multiple inheritance)
+With composition:
+- You can't refer to composites polymorphically
+- There's no base interface, unless you add one manually
 
-3. **Use Multiple Inheritance**: Digging the hole deeper is always an option. We can use multiple inheritance to "compose" multiple orthogonal classes into a single class much like using a mixin pattern. 
+## Archetypes
+**Archetype** gives you **type erased** views over objects that *implement* a particular interface without requiring them to inherit from anything. 
 
-    ```cpp
-    class A {public: void a(); };
-    class B {public: int b(int); };
-    class C {public: double c(double); };
-    class AB : public A, public B {};       // inherits from A and B
-    class AC : public A, public C {};       // inherits from A and C
-    class BC : public B, public C {};       // inherits from B and C
-    ```
-    We can now use base pointers to refer to AB and AC through their common interfaces. For example:
-
-    ```cpp
-    AB ab;
-    AC ac;
-    A & ab_ref = static_cast<A&>(ab);
-    A & ac_ref = static_cast<A&>(ac);
-    ```
-    While this works for these simple types, multiple inheritance has not solved the problem, but rather **deferred** it, and has introduced some new problems too. If we add `class D` and want common base of `AB` between `ABC` and `ABD` we have to start inheriting composites ie: `AB`
-
-    ```cpp
-    class ABC : public AB, public C {};    // inherits common base AB
-    class ABD : public AB, public D {};    // inherits common base AB
-    ```
-    We now run into exactly the same problem as before when we want an common interface for `class ABC` and `class ACD`. 
-
-
-# Archetypes
-The archetype pattern makes it possible to get references to composite classes.The archetype pattern creates views to Lets consider the previous example that multiple inheritance failed to solve. We would like a common interface between `class ABC` and `class ABD` and a common interface between `class ABC` and `class ACD`. I'm assuming that these classes have already been defined and implement their respective methods. 
-
-With inheritance, the derived class has an **is-a** relationship to the base. In composition the composite class has a **has-a** relationship to its constituents. With the archetype pattern, the class being bound must have a **implements** relationship with respect to the archetype requirements.
-
-We define archetypes in a manner similar to how we define C++20 concepts. We define the function name and signature of the methods that are required. Below we define `archetype_a` whose base can bind to any type that **implements** a member function `void a()`. 
-
+### Define an interface:
 ```cpp
 #include "archetype.h"
 DEFINE_ARCHETYPE(archetype_a, ( DEFINE_METHOD(void, a) ))
-DEFINE_ARCHETYPE(archetype_b, ( DEFINE_METHOD(int, b, int) )) 
-DEFINE_ARCHETYPE(archetype_c, ( DEFINE_METHOD(double, c, double) )) 
+DEFINE_ARCHETYPE(archetype_b, ( DEFINE_METHOD(int, b, int) ))
+DEFINE_ARCHETYPE(archetype_c, ( DEFINE_METHOD(double, c, double) ))
 ```
-In our case we are only requiring one function per archetype, but more are possible, and function overloading is supported.
-If we wish we can compose primitive archetypes into more complex types.
-
+### Compose multiple interfaces:
 ```cpp
 COMPOSE_ARCHETYPE(archetype_ab, archetype_a, archetype_b)
-COMPOSE_ARCHETYPE(archetype_ac, archetype_b, archetype_c)
+COMPOSE_ARCHETYPE(archetype_ac, archetype_a, archetype_c)
 ```
-We can now create base references that bind to any class that **implements** the requirements of the archetype. 
-
+### Bind any compatible object:
 ```cpp
-// Common AB interfaces to ABC and ABD
 ABC abc;
 ABD abd;
-has_ab::base<> abc_ref, abd_ref; // type erased base references
-abc_ref.bind(abc);
-abd_ref.bind(abd);
-abc_ref.a();    // call a() of ABC type
-abd_ref.b(5);   // call method b of ABD
+
+archetype_ab::view abc_view, abd_view;
+abc_view.bind(abc);
+abd_view.bind(abd);
+
+abc_view.a();
+abd_view.b(5);
 ```
- We can do exatly the same for anything with a comonality of `AC`
+You now have a **type erased**, **composable**, **zero overhead** reference to any object that *implements* the interface regardless of its type or hierarchy. 
 
-```cpp
-// Common AC interfaces to ABC and ACD
-ACD acd;
-has_ac::base<> abc_ref2, acd_ref; // type erased base references
-abc_ref2.bind(abc);
-acd_ref.bind(acd);
-abc_ref2.c(13.5);       // call c() of ABC type
-acd_ref.a();            // call method a of ACD
-```
+## How Archetype Compares
+| Feature                           | Inheritance  | CRTP | std::function | Archetype         |
+|-----------------------------------|--------------|------|---------------|-------------------|
+| **Type-erased interface**         | ✅           | ❌   | ✅            | ✅                |
+| **Zero dynamic allocation**       | ✅           | ✅   | ❌            | ✅                |
+| **Works with existing types**     | ❌           | ❌   | ✅            | ✅                |
+| **Composable interfaces**         | ❌           | ✅   | ❌            | ✅                |
+| **No base class required**        | ❌           | ❌   | ✅            | ✅                |
+| **Static dispatch**               | ❌ (virtual) | ✅   | ❌            | ✅                |
+| **Runtime polymorphism**          | ✅           | ❌   | ✅            | ✅ (type-erased)  |
+| **Compile-time safety (SFINAE)**  | ❌           | ✅   | ❌            | ✅                |
+| **Supports mixin views**          | ❌           | ✅   | ❌            | ✅                |
+| **Header-only**                   | ✅           | ✅   | ✅            | ✅                |
 
-So Archetype solves the common base interface problem. It allows you to create base references to anything that implements the archetype requirements. But it does this without any coupling to the types it can bind to.
+TODO - double check this table
 
-Archetype also solves the clean type erased interface problem. The archetype base type does not depend on the type being bound. This becomes really important if refactoring existing libraries and helps to avoid breaking the API.
+## Patterns That Work Well With Archetype
 
-# How should we build our type hierarchies?
-Archetpye doesn't presecribe any particular way of building type hierarchies. It will work with the types you have, and will allow you to create views to them.
-
-There are however some patterns that I think work very well with archetype. 
-
-### Split APIs and Dependencies
-I'm a huge fan of highly portable libraries. The goal of the library may be to implement algorithms, or a particular generic API. But to be portable we need to keep the surface area of user facing dependencies as small as possible.
-
-Being very concept like supports this idea quite nicely. The library should depend on "concepts" rather than specific implementations. Now the user does not have to depend on these specific implementatons eiher. Provided the user can supply or replace default implementations with their own then we have a very portable library. 
-
-In this case archetypes are not used to implement the library API but are used as the "concepts" on which the library depends.
+### 1. Split APIs and Dependencies
+Define APIs that depend on interfaces, not on implementations.
 
 ```cpp
 DEFINE_ARCHETYPE(loggable, ( DEFINE_METHOD(void, log, const char *) ))
 
 class DoTheThing 
 {
-    public:
-    void do_the_thing() { if(valid) logger.log("doing the thing"); }
-    template<typename T>
-    void set_logger(T & t) { valid = logger.bind(t); }
-    private:
-    bool valid = false;
-    loggable::base<> logger;
+  bool valid = false;
+  loggable::view logger;
+  
+  public:
+    void do_the_thing() { 
+      if(valid) logger.log("doing the thing"); 
+    }
+
+  template<typename T>
+  void set_logger(T & t) { valid = logger.bind(t); } //TODO - check this
 };
 ```
+Now `DoTheThing` doesn't need to be templated, or depend on a base class, or invoke dynamic memory allocation, and can work with any *logger*
 
-In this case we have created a library class `DoTheThing` which has no dependency on the type used for logging.
-
-### Maximally Composable APIs
-I prefer to take this a bit further and make my APIs maximally resuable and composable, while maintaining minimal dependecies on implementations. Here we use a mixin pattern to define a `WriteAPI` and a `ReadAPI`. The `WriteAPI` will derive from class `W` and provide a `write_api` function. It's only dependency is that class `W` implements a public `write()` function. 
-
+### 2. Composable Stateless Mixin Views
+Create modular, composable views that depend on as few archetypes as possible.
 ```cpp
+DEFINE_ARCHETYPE(writable, ( DEFINE_METHOD(int, write, const char *, int)))
+DEFINE_ARCHETYPE(readable, ( DEFINE_METHOD(int, read, char *, int)))
+
 template <class W> class WriteAPI : public W {
 public:
   using W::W;
@@ -171,17 +141,7 @@ public:
     this->write(buf, size);
   }
 };
-```
-Below we extend class `MyReadWriter` by deriving from it and adding the write API functionality in typical mixin fashion. 
 
-```cpp
-class MyReadWriter; // A class that implements read and write functions
-WriteAPI<MyWriter> extended;
-extended.write_api("hello");
-```
-
-Similarly we can also define a `ReadAPI` which will can also extend the `MyReadWriter` class. 
-```cpp
 template <class R> class ReadAPI : public R {
 public:
   using R::R;
@@ -191,19 +151,73 @@ public:
   }
 };
 ```
-
-
-A much more interesting case that doesn't involve instantiating an object is to only create a reference to `WriteAPI<MyReadWriter>` and cast an object of `MyWriter`, as shown below. 
+Then use archetypes to bind bindable types, to create type erased views of other objects. 
 
 ```cpp
-MyWriter my_writer;
-using WriteAPI<MyWriter> = ExtendedWriter;
-ExtendedWriter * ptr = static_cast<ExtendedWriter*>(&my_writer);
-ptr.write_api("hello");
+COMPOSE_ARCHETYPE(readwritable, writable, readable)
+
+class MyReadWriter { 
+  public: 
+  int write(const char *, int);
+  int read(char *, int); 
+};
+
+MyReadWriter my_read_writer;
+WriteAPI<ReadAPI<readwritable::view>> my_view;
+my_view.bind(my_read_writer);
+my_view.write_api("using the write api on my_read_writer");
+char buf[4096];
+my_view.read_api(buf, sizeof(buf)); 
 ```
-Here we created a new type, but never instantiated it. Nonetheless we were able to view the instance of `MyWriter` through the lens of our `WriteAPI`. This is only okay because deriving our `ExtendedWriter` didn't add any member variables, or virtual functions to the class. Mixin pointer based views like this cannot keep track of state. 
 
+Or use directly without instantiating a view type. 
+```cpp
+writable::assert(my_read_writer);
+using WriteView = WriteAPI<MyReadWriter>;
+WriteView * write_view = static_cast<WriteView*>(&my_read_writer);
+write_view.write("no view objects were instantiated");
+```
+Caveat: the views must not have virtuals, or member variables. 
 
+### 3. Stateful Mixin Views
+Since `archetype::view` is a real object, you can create stateful views. 
 
+```cpp
+template <class W> class StateFullWriteAPI : public W {
+public:
+  using W::W;
+  using W::write;
+  int write_api(char *buf, int size) {
+    this->write(buf, size);
+    count++;
+    return count;
+  }
+private:
+  int count = 0;
+};
 
+StateFullWriteAPI<writable::view> stateful_ref;
+stateful_ref.bind(rw_instance);
 
+int num_writes = rw_instance.write_api("stateful writing");
+```
+
+# What Happens On Error?
+If a type bound to an archetype doesn’t implement all required methods, the code will fail at compile time with a clear SFINAE-based error. No runtime surprises.
+
+# Install
+Just drop archetype.h into your project.
+
+# Philosophy
+Archetype doesn’t force you to change how you build your types. Instead it lets you view them through modular, lightweight interfaces.
+
+Think of it as:
+- Static, type safe std::function
+- Header only type erased concept
+- A better way to do plugin interfaces
+- Virtual interfaces without virtual inheritance
+
+# Who is this for?
+If you're building portable libraries, embedded systems, plugin based frameworks, or trying to untangle brittle inheritance hierarchies Archetype is for you.
+
+It brings modern modularity to C++11, without the baggage.
