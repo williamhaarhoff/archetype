@@ -40,9 +40,7 @@ class Writer {
 public:
   int write(const char *buf, size_t size) {
     int n = 0;
-    while (size--) {
-      std::cout << buf[n++];
-    }
+    while (size--) { std::cout << buf[n++]; }
     std::cout << std::flush;
     return n;
   }
@@ -81,7 +79,93 @@ private:
   Reader reader;
 };
 
-int main() {
+
+template<typename, typename = void>
+struct has_exact_foo : std::false_type {};
+
+template<typename T>
+struct has_exact_foo<T,
+    std::void_t<
+      decltype(
+        static_cast<void (T::*)(int)>(&T::foo),
+        static_cast<void (T::*)(double)>(&T::foo)
+      )
+    >
+> : std::true_type {};
+
+
+template<typename, typename = void>
+struct has_exact_bar : std::false_type {};
+
+template<typename T>
+struct has_exact_bar<T,
+    std::void_t<
+      decltype(
+        static_cast<void (T::*)(double)>(&T::bar)
+      )
+    >
+> : std::true_type {};
+
+
+// template<typename, typename = void>
+// struct has_exact_foo_bar : std::false_type {};
+
+template<typename T>
+struct has_exact_foo_bar
+  : std::integral_constant<bool,
+      has_exact_foo<T>::value && has_exact_bar<T>::value> {};
+
+
+
+struct FooCandidate
+{
+  void foo(int) {}
+  void foo(double) {}
+  void bar(double) {}
+};
+
+struct FooCandidate2
+{
+  void foo(int) {}
+  void foo(double) {}
+  void bar(char) {}
+};
+
+struct FooBarArchetype
+{
+  template<typename T>
+  struct is_exact
+  : std::integral_constant<bool,
+      has_exact_foo<T>::value && has_exact_bar<T>::value> {};
+};
+
+
+#define ARCHETYPE_CHECK(A, T)\
+  typename T, \
+  typename = typename std::enable_if<A::is_exact<T>::value>::type
+
+
+template <ARCHETYPE_CHECK(FooBarArchetype, C)>
+struct DoTheThing : public C
+{
+  
+};
+
+
+
+
+
+int main()
+{
+  static_assert(has_exact_foo<FooCandidate>::value, "FooCandidate matches");
+  // static_assert(has_exact_foo<FooCandidate2>::value, "FooCandidate2 does not match");
+  DoTheThing<FooCandidate> ext1;
+
+}
+
+
+
+int main2() {
   if (__cplusplus == 202302L)
     std::cout << "C++23";
   else if (__cplusplus == 202002L)
