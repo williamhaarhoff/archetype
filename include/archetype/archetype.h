@@ -24,11 +24,11 @@ protected:
   public:                                                                      \
     template<typename, typename = void>                                        \
     struct check : std::false_type {};                                         \
-                                                                              \
-    template<typename T>                                                      \
-    struct check<T, std::void_t<decltype(                                     \
-      EXPAND_ARCHETYPE_REQUIREMENTS(METHODS)                                  \
-      )>> : std::true_type {};                                                \
+                                                                               \
+    template<typename T>                                                       \
+    struct check<T, std::void_t<decltype(                                      \
+      EXPAND_ARCHETYPE_REQUIREMENTS(METHODS)                                   \
+      )>> : std::true_type {};                                                 \
                                                                                \
     template <typename B = archetype::Base> class base : public B {            \
       EXPAND_ARCHETYPE_METHODS(METHODS)                                        \
@@ -64,15 +64,14 @@ protected:
     NAME() = delete;                                                           \
                                                                                \
   public:                                                                      \
-    template <typename T> static void assert()                                 \
-    {                                                                          \
-      EXPAND_COMPONENT_ASSERTIONS(__VA_ARGS__)                                 \
-    }                                                                          \
-    template <typename T> static void assert(T &t) { assert<T>(); }            \
+    template<typename T>                                                       \
+    struct check                                                               \
+      : std::integral_constant<bool,                                           \
+        EXPAND_COMPONENT_REQUIREMENTS(__VA_ARGS__)                             \
+        > {};                                                                  \
                                                                                \
     template <typename B = archetype::Base>                                    \
-    class base                                                                 \
-        : public EXPAND_COMPONENT_INHERITANCE(__VA_ARGS__) {};                 \
+    class base : public EXPAND_COMPONENT_INHERITANCE(__VA_ARGS__) {};          \
                                                                                \
     template <template <typename> class Interface> class ptr {                 \
     private:                                                                   \
@@ -90,41 +89,7 @@ protected:
     };                                                                         \
   };
 
-// struct readwritable
-// {
-//   readwritable() = delete;
 
-//   public:
-//   template<typename T> static void assert()
-//   {
-//     writable::assert<T>();
-//     readable::assert<T>();
-//   }
-//   template<typename T> static void assert(T & t)
-//   {
-//     assert<T>();
-//   }
-
-//   template<typename B = archetype::Base>
-//   class base : public readable::base<writable::base<B>> {};
-
-//   template<template<typename> class Interface>
-//   class ptr
-//   {
-//     private: using T = Interface<base<>>;
-//     T impl;
-//     public:
-//     template<typename CONCEPT>
-//     void bind(CONCEPT & ref)
-//     {
-//       impl.bind(ref);
-//     }
-//     T& operator*() { return &impl;}
-//     const T& operator*() const { return &impl;}
-//     T* operator->() { return &impl; }
-//     const T* operator->() const { return &impl; }
-//   };
-// };
 
 #define EXPAND_ARCHETYPE_METHODS(METHODS) EXPAND_ARCHETYPE_METHODS_IMPL METHODS
 
@@ -159,16 +124,23 @@ protected:
 #define EXPAND_CONCEPT_ASSERTIONS_IMPL(...)                                    \
   FOR_EACH(CONCEPT_ASSERTION, __VA_ARGS__)
 
-#define EXPAND_COMPONENT_ASSERTIONS(...) \
-  FOR_EACH_CALL(DO_ASSERT, __VA_ARGS__)
+#define EXPAND_COMPONENT_ASSERTIONS(...) FOR_EACH_CALL(DO_ASSERT, __VA_ARGS__)
 
 #define APPEND_BASE(x) x::base
-  
-#define EXPAND_COMPONENT_INHERITANCE(...) \
+
+#define APPEND_CHECK(x) x::check<T>::value
+
+#define EXPAND_COMPONENT_INHERITANCE(...)                                      \
   EXPAND_COMPONENT_INHERITANCE_IMPL(FOR_EACH_SEP_CALL(APPEND_BASE, __VA_ARGS__))
 
-#define EXPAND_COMPONENT_INHERITANCE_IMPL(...)\
+#define EXPAND_COMPONENT_INHERITANCE_IMPL(...)                                 \
   TEMPLATE_CHAIN(__VA_ARGS__ COMMA_IF_ARGS(__VA_ARGS__) B)
+
+#define EXPAND_COMPONENT_REQUIREMENTS(...)                                      \
+  FOR_EACH_SEPX_CALL(APPEND_CHECK, &&, __VA_ARGS__)
+
+// #define EXPAND_COMPONENT_REQUIREMENTS_IMPL(...)                                 \
+//   TEMPLATE_CHAIN(__VA_ARGS__ COMMA_IF_ARGS(__VA_ARGS__) B)
 
 
 #define EXPAND(x) x
@@ -236,32 +208,54 @@ protected:
 #define FOR_EACH_CALL_3(M, a1, a2, a3) M(a1) M(a2) M(a3)
 #define FOR_EACH_CALL_4(M, a1, a2, a3, a4) M(a1) M(a2) M(a3) M(a4)
 #define FOR_EACH_CALL_5(M, a1, a2, a3, a4, a5) M(a1) M(a2) M(a3) M(a4) M(a5)
-#define FOR_EACH_CALL_6(M, a1, a2, a3, a4, a5, a6) M(a1) M(a2) M(a3) M(a4) M(a5) M(a6)
-#define FOR_EACH_CALL_7(M, a1, a2, a3, a4, a5, a6, a7) M(a1) M(a2) M(a3) M(a4) M(a5) M(a6) M(a7)
-#define FOR_EACH_CALL_8(M, a1, a2, a3, a4, a5, a6, a7, a8) M(a1) M(a2) M(a3) M(a4) M(a5) M(a6) M(a7) M(a8)
+#define FOR_EACH_CALL_6(M, a1, a2, a3, a4, a5, a6)                             \
+  M(a1) M(a2) M(a3) M(a4) M(a5) M(a6)
+#define FOR_EACH_CALL_7(M, a1, a2, a3, a4, a5, a6, a7)                         \
+  M(a1) M(a2) M(a3) M(a4) M(a5) M(a6) M(a7)
+#define FOR_EACH_CALL_8(M, a1, a2, a3, a4, a5, a6, a7, a8)                     \
+  M(a1) M(a2) M(a3) M(a4) M(a5) M(a6) M(a7) M(a8)
 
-#define FOR_EACH_CALL(M, ...) \
+#define FOR_EACH_CALL(M, ...)                                                  \
   GET_FOR_EACH_CALL(M_NARGS(__VA_ARGS__))(M, __VA_ARGS__)
 
-#define GET_FOR_EACH_CALL(N) CAT(FOR_EACH_CALL_,N)
-
-
+#define GET_FOR_EACH_CALL(N) CAT(FOR_EACH_CALL_, N)
 
 #define FOR_EACH_SEP_CALL_1(M, a1) M(a1)
 #define FOR_EACH_SEP_CALL_2(M, a1, a2) M(a1), M(a2)
 #define FOR_EACH_SEP_CALL_3(M, a1, a2, a3) M(a1), M(a2), M(a3)
 #define FOR_EACH_SEP_CALL_4(M, a1, a2, a3, a4) M(a1), M(a2), M(a3), M(a4)
-#define FOR_EACH_SEP_CALL_5(M, a1, a2, a3, a4, a5) M(a1), M(a2), M(a3), M(a4), M(a5)
-#define FOR_EACH_SEP_CALL_6(M, a1, a2, a3, a4, a5, a6) M(a1), M(a2), M(a3), M(a4), M(a5), M(a6)
-#define FOR_EACH_SEP_CALL_7(M, a1, a2, a3, a4, a5, a6, a7) M(a1), M(a2), M(a3), M(a4), M(a5), M(a6), M(a7)
-#define FOR_EACH_SEP_CALL_8(M, a1, a2, a3, a4, a5, a6, a7, a8) M(a1), M(a2), M(a3), M(a4), M(a5), M(a6), M(a7), M(a8)
+#define FOR_EACH_SEP_CALL_5(M, a1, a2, a3, a4, a5)                             \
+  M(a1), M(a2), M(a3), M(a4), M(a5)
+#define FOR_EACH_SEP_CALL_6(M, a1, a2, a3, a4, a5, a6)                         \
+  M(a1), M(a2), M(a3), M(a4), M(a5), M(a6)
+#define FOR_EACH_SEP_CALL_7(M, a1, a2, a3, a4, a5, a6, a7)                     \
+  M(a1), M(a2), M(a3), M(a4), M(a5), M(a6), M(a7)
+#define FOR_EACH_SEP_CALL_8(M, a1, a2, a3, a4, a5, a6, a7, a8)                 \
+  M(a1), M(a2), M(a3), M(a4), M(a5), M(a6), M(a7), M(a8)
 
-#define FOR_EACH_SEP_CALL(M, ...) \
+#define FOR_EACH_SEP_CALL(M, ...)                                              \
   GET_FOR_EACH_SEP_CALL(M_NARGS(__VA_ARGS__))(M, __VA_ARGS__)
 
-#define GET_FOR_EACH_SEP_CALL(N) CAT(FOR_EACH_SEP_CALL_,N)
+#define GET_FOR_EACH_SEP_CALL(N) CAT(FOR_EACH_SEP_CALL_, N)
 
 
+#define FOR_EACH_SEPX_CALL_1(M, X, a1) M(a1)
+#define FOR_EACH_SEPX_CALL_2(M, X, a1, a2) M(a1) X M(a2)
+#define FOR_EACH_SEPX_CALL_3(M, X, a1, a2, a3) M(a1) X M(a2) X M(a3)
+#define FOR_EACH_SEPX_CALL_4(M, X, a1, a2, a3, a4) M(a1) X M(a2) X M(a3) X M(a4)
+#define FOR_EACH_SEPX_CALL_5(M, X, a1, a2, a3, a4, a5)                             \
+  M(a1) X M(a2) X M(a3) X M(a4) X M(a5)
+#define FOR_EACH_SEPX_CALL_6(M,X, a1, a2, a3, a4, a5, a6)                         \
+  M(a1) X M(a2) X M(a3) X M(a4) X M(a5) X M(a6)
+#define FOR_EACH_SEPX_CALL_7(M, a1, a2, a3, a4, a5, a6, a7)                     \
+  M(a1) X M(a2) X M(a3) X M(a4) X M(a5) X M(a6) X M(a7)
+#define FOR_EACH_SEPX_CALL_8(M, a1, a2, a3, a4, a5, a6, a7, a8)                 \
+  M(a1) X M(a2) X M(a3) X M(a4) X M(a5) X M(a6) X M(a7) X M(a8)
+
+#define FOR_EACH_SEPX_CALL(M, X, ...)                                              \
+  GET_FOR_EACH_SEPX_CALL(M_NARGS(__VA_ARGS__))(M, X, __VA_ARGS__)
+
+#define GET_FOR_EACH_SEPX_CALL(N) CAT(FOR_EACH_SEPX_CALL_, N)
 
 // #define ARCHETYPE_METHOD(ret, name, ...)                                 \
 //   public: ret name(__VA_ARGS__) { return _##name_stub(_obj, __VA_ARGS__); }
@@ -336,18 +330,15 @@ protected:
 #define TEMPLATE_CHAIN_4(t0, t1, t2, t3) t0<t1<t2<t3>>>
 #define TEMPLATE_CHAIN_5(t0, t1, t2, t3, t4) t0<t1<t2<t3<t4>>>>
 #define TEMPLATE_CHAIN_6(t0, t1, t2, t3, t4, t5) t0<t1<t2<t3<t4<t5>>>>>
-#define TEMPLATE_CHAIN_7(t0, t1, t2, t3, t4, t5, t6)                           \
-t0<t1<t2<t3<t4<t5<t6>>>>>>
+#define TEMPLATE_CHAIN_7(t0, t1, t2, t3, t4, t5, t6) t0<t1<t2<t3<t4<t5<t6>>>>>>
 #define TEMPLATE_CHAIN_8(t0, t1, t2, t3, t4, t5, t6, t7)                       \
-t0<t1<t2<t3<t4<t5<t6<t7>>>>>>>
+  t0<t1<t2<t3<t4<t5<t6<t7>>>>>>>
 #define TEMPLATE_CHAIN_9(t0, t1, t2, t3, t4, t5, t6, t7, t8)                   \
-t0<t1<t2<t3<t4<t5<t6<t7<t8>>>>>>>>
+  t0<t1<t2<t3<t4<t5<t6<t7<t8>>>>>>>>
 #define TEMPLATE_CHAIN_10(t0, t1, t2, t3, t4, t5, t6, t7, t8, t9)              \
-t0<t1<t2<t3<t4<t5<t6<t7<t8<t9>>>>>>>>>
+  t0<t1<t2<t3<t4<t5<t6<t7<t8<t9>>>>>>>>>
 
 // Extend as needed...
-
-
 
 #define ARG_NAMES(count, ...) CAT(ARG_NAMES_, count)(__VA_ARGS__)
 
@@ -412,13 +403,8 @@ public:                                                                        \
 //   DEFINE_METHOD(size_t, write)
 // ))
 
-
-
-
-// #define APPEND_BASE_TO_EACH(...) (FOR_EACH_SEP_CALL(APPEND_BASE, __VA_ARGS__))
-
-
-
+// #define APPEND_BASE_TO_EACH(...) (FOR_EACH_SEP_CALL(APPEND_BASE,
+// __VA_ARGS__))
 
 // APPEND_BASE_TO_EACH(w, r)
 
@@ -427,12 +413,9 @@ public:                                                                        \
 // COMPOSE_ARCHETYPE(readwritable, writable, readable)
 // #define EXPAND_COMPONENT_ASSERTIONS(...) FOR_EACH(DO_ASSERT, __VA_ARGS__)
 
-
-
-
 // EXPAND_COMPONENT_ASSERTIONS(writable, readable, somethingable)
-// COMPONENT_ASSERTION(writable) COMPONENT_ASSERTION(readable) COMPONENT_ASSERTION(somethingable)
-// DEFINE_ARCHETYPE(writable, (
+// COMPONENT_ASSERTION(writable) COMPONENT_ASSERTION(readable)
+// COMPONENT_ASSERTION(somethingable) DEFINE_ARCHETYPE(writable, (
 //   DEFINE_METHOD(int, write, const char *, size_t)
 // ))
 

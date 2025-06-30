@@ -11,11 +11,16 @@ DEFINE_ARCHETYPE(readable, (
   DEFINE_METHOD(int, read, char *, size_t)
 ))
 
-// COMPOSE_ARCHETYPE(readwritable, readable, writable)
+COMPOSE_ARCHETYPE(readwritable, readable, writable)
+
+
+#define ARCHETYPE_CHECK(A, T)\
+  typename T, \
+  typename = typename std::enable_if<A::check<T>::value>::type
 
 
 // Stateless interfaces
-template <typename W> class WriteInterface : public W {
+template <ARCHETYPE_CHECK(writable, W)> class WriteInterface : public W {
 public:
   using W::W;
   using W::write;
@@ -24,7 +29,7 @@ public:
   }
 };
 
-template <typename R> class ReadInterface : public R {
+template <ARCHETYPE_CHECK(readable, R)> class ReadInterface : public R {
 public:
   using R::R;
   using R::read;
@@ -32,8 +37,9 @@ public:
 };
 
 // Composed interfaces
-template <typename RW>
+template <ARCHETYPE_CHECK(readwritable, RW)>
 class ReadWriteInterface : public ReadInterface<WriteInterface<RW>> {};
+
 
 // These are implementations provided by an external library
 class Writer {
@@ -80,104 +86,20 @@ private:
 };
 
 
-template<typename, typename = void>
-struct has_exact_foo : std::false_type {};
-
-template<typename T>
-struct has_exact_foo<T,
-    std::void_t<
-      decltype(
-        static_cast<void (T::*)(int)>(&T::foo),
-        static_cast<void (T::*)(double)>(&T::foo)
-      )
-    >
-> : std::true_type {};
-
-
-template<typename, typename = void>
-struct has_exact_bar : std::false_type {};
-
-template<typename T>
-struct has_exact_bar<T,
-    std::void_t<
-      decltype(
-        static_cast<void (T::*)(double)>(&T::bar)
-      )
-    >
-> : std::true_type {};
-
-
-// template<typename, typename = void>
-// struct has_exact_foo_bar : std::false_type {};
-
-template<typename T>
-struct has_exact_foo_bar
-  : std::integral_constant<bool,
-      has_exact_foo<T>::value && has_exact_bar<T>::value> {};
-
-
-
-struct FooCandidate
-{
-  void foo(int) {}
-  void foo(double) {}
-  void bar(double) {}
-};
-
-struct FooCandidate2
-{
-  void foo(int) {}
-  void foo(double) {}
-  void bar(char) {}
-};
-
-struct FooBarArchetype
-{
-  template<typename T>
-  struct is_exact
-  : std::integral_constant<bool,
-      has_exact_foo<T>::value && has_exact_bar<T>::value> {};
-};
-
-
-#define ARCHETYPE_CHECK_OLD(A, T)\
-  typename T, \
-  typename = typename std::enable_if<A::is_exact<T>::value>::type
-
-
-#define ARCHETYPE_CHECK(A, T)\
-  typename T, \
-  typename = typename std::enable_if<A::check<T>::value>::type
-
-template <ARCHETYPE_CHECK_OLD(FooBarArchetype, C)>
-struct DoTheThing : public C
-{
-  
-};
-
-
-template <ARCHETYPE_CHECK(writable, W)>
-struct WriteExtension : public W
-{
-  
-};
 
 
 
 int main()
 {
-
-  static_assert(has_exact_foo<FooCandidate>::value, "FooCandidate matches");
+  static_assert(!readwritable::check<Writer>::value, "Candidate being checked fails to match");
   // static_assert(has_exact_foo<FooCandidate2>::value, "FooCandidate2 does not match");
-  DoTheThing<FooCandidate> ext1;
-
-  WriteExtension<Writer> we;
-
+  // DoTheThing<FooCandidate> ext1;
+  // WriteExtension<ComposedReadWriter> we;
 }
 
 
 
-// int main2() {
+// int main() {
 //   if (__cplusplus == 202302L)
 //     std::cout << "C++23";
 //   else if (__cplusplus == 202002L)
@@ -209,16 +131,17 @@ int main()
 //                              43);
 
 //   // using the generic base
-//   writable::assert(nw);
+  
 //   WriteInterface<writable::base<>> augmented_write_base;
 //   augmented_write_base.bind(crw);
 //   augmented_write_base.write_api("hello from macro generated write api!\n", 39);
 
 //   // using a generic read write base
-//   readable::assert(crw);
 //   ReadWriteInterface<readwritable::base<>> augmented_readwrite_base;
 //   augmented_readwrite_base.bind(crw);
 //   augmented_readwrite_base.write_api("hello from generic concept base!\n", 32);
+
+
 
 //   // ReadWriteArchetype::ptr<ReadWriteInterface> ptr;
 //   // ptr.bind(crw);
