@@ -1,7 +1,7 @@
 #ifndef __ARCHETYPE_H__
 #define __ARCHETYPE_H__
 
-// #include <type_traits>
+#include <type_traits>
 
 namespace archetype {
 class Base {
@@ -16,20 +16,19 @@ protected:
 } // namespace archetype
 
 
-//: public TEMPLATE_CHAIN(__VA_ARGS__ COMMA_IF_ARGS(__VA_ARGS__) B) {};  \
-
 #define DEFINE_ARCHETYPE(NAME, METHODS)                                        \
   struct NAME {                                                                \
     NAME() = delete;                                                           \
                                                                                \
-  private:                                                                     \
-    EXPAND_CONCEPT_REQUIREMENTS(METHODS)                                       \
                                                                                \
   public:                                                                      \
-    template <typename T> static void assert() {                               \
-      EXPAND_CONCEPT_ASSERTIONS(METHODS)                                       \
-    }                                                                          \
-    template <typename T> static void assert(T &t) { assert<T>(); }            \
+    template<typename, typename = void>                                        \
+    struct check : std::false_type {};                                         \
+                                                                              \
+    template<typename T>                                                      \
+    struct check<T, std::void_t<decltype(                                     \
+      EXPAND_ARCHETYPE_REQUIREMENTS(METHODS)                                  \
+      )>> : std::true_type {};                                                \
                                                                                \
     template <typename B = archetype::Base> class base : public B {            \
       EXPAND_ARCHETYPE_METHODS(METHODS)                                        \
@@ -148,6 +147,12 @@ protected:
 #define EXPAND_CONCEPT_REQUIREMENTS_IMPL(...)                                  \
   FOR_EACH(CONCEPT_REQUIREMENT, __VA_ARGS__)
 
+#define EXPAND_ARCHETYPE_REQUIREMENTS(METHODS)                                   \
+  EXPAND_ARCHETYPE_REQUIREMENTS_IMPL METHODS
+
+#define EXPAND_ARCHETYPE_REQUIREMENTS_IMPL(...)                                  \
+  FOR_EACH_SEP(ARCHETYPE_REQUIREMENT, __VA_ARGS__)
+
 #define EXPAND_CONCEPT_ASSERTIONS(METHODS)                                     \
   EXPAND_CONCEPT_ASSERTIONS_IMPL METHODS
 
@@ -196,6 +201,34 @@ protected:
 #define FE8_2(M, T, x, ...) M(T, x) FE7_2(M, T, __VA_ARGS__)
 #define FE9_2(M, T, x, ...) M(T, x) FE8_2(M, T, __VA_ARGS__)
 #define FE10_2(M, T, x, ...) M(T, x) FE9_2(M, T, __VA_ARGS__)
+
+
+#define FOR_EACH_SEP(M, ...)                                                       \
+  EXPAND(GET_MACRO(__VA_ARGS__, FES10, FES9, FES8, FES7, FES6, FES5, FES4, FES3, FES2,  \
+                   FES1)(M, __VA_ARGS__))
+
+#define FES1(M, x) M x
+#define FES2(M, x, ...) M x ,FE1(M, __VA_ARGS__)
+#define FES3(M, x, ...) M x ,FE2(M, __VA_ARGS__)
+#define FES4(M, x, ...) M x ,FE3(M, __VA_ARGS__)
+#define FES5(M, x, ...) M x ,FE4(M, __VA_ARGS__)
+#define FES6(M, x, ...) M x ,FE5(M, __VA_ARGS__)
+#define FES7(M, x, ...) M x ,FE6(M, __VA_ARGS__)
+#define FES8(M, x, ...) M x ,FE7(M, __VA_ARGS__)
+#define FES9(M, x, ...) M x ,FE8(M, __VA_ARGS__)
+#define FES10(M, x, ...) M x ,FE9(M, __VA_ARGS__)
+
+#define FES1_2(M, T, x) M(T, x)
+#define FES2_2(M, T, x, ...) M(T, x), FE1_2(M, T, __VA_ARGS__)
+#define FES3_2(M, T, x, ...) M(T, x), FE2_2(M, T, __VA_ARGS__)
+#define FES4_2(M, T, x, ...) M(T, x), FE3_2(M, T, __VA_ARGS__)
+#define FES5_2(M, T, x, ...) M(T, x), FE4_2(M, T, __VA_ARGS__)
+#define FES6_2(M, T, x, ...) M(T, x), FE5_2(M, T, __VA_ARGS__)
+#define FES7_2(M, T, x, ...) M(T, x), FE6_2(M, T, __VA_ARGS__)
+#define FES8_2(M, T, x, ...) M(T, x), FE7_2(M, T, __VA_ARGS__)
+#define FES9_2(M, T, x, ...) M(T, x), FE8_2(M, T, __VA_ARGS__)
+#define FES10_2(M, T, x, ...) M(T, x), FE9_2(M, T, __VA_ARGS__)
+
 
 
 #define FOR_EACH_CALL_1(M, a1) M(a1)
@@ -356,6 +389,15 @@ public:                                                                        \
 
 #define DEFINE_METHOD(ret, name, ...)                                          \
   (UNIQUE_NAME(name), ret, name, __VA_ARGS__)
+
+
+
+
+#define ARCHETYPE_REQUIREMENT(unique_name, ret, name, ...)\
+  static_cast<ret (T::*)(TYPED_ARGS(M_NARGS(__VA_ARGS__), __VA_ARGS__))>(&T::name)
+
+
+
 
 // COMMA_IF_ARGS()
 // COMMA_IF_ARGS(1)

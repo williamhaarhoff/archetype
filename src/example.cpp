@@ -11,7 +11,7 @@ DEFINE_ARCHETYPE(readable, (
   DEFINE_METHOD(int, read, char *, size_t)
 ))
 
-COMPOSE_ARCHETYPE(readwritable, readable, writable)
+// COMPOSE_ARCHETYPE(readwritable, readable, writable)
 
 
 // Stateless interfaces
@@ -140,88 +140,100 @@ struct FooBarArchetype
 };
 
 
-#define ARCHETYPE_CHECK(A, T)\
+#define ARCHETYPE_CHECK_OLD(A, T)\
   typename T, \
   typename = typename std::enable_if<A::is_exact<T>::value>::type
 
 
-template <ARCHETYPE_CHECK(FooBarArchetype, C)>
+#define ARCHETYPE_CHECK(A, T)\
+  typename T, \
+  typename = typename std::enable_if<A::check<T>::value>::type
+
+template <ARCHETYPE_CHECK_OLD(FooBarArchetype, C)>
 struct DoTheThing : public C
 {
   
 };
 
 
+template <ARCHETYPE_CHECK(writable, W)>
+struct WriteExtension : public W
+{
+  
+};
 
 
 
 int main()
 {
+
   static_assert(has_exact_foo<FooCandidate>::value, "FooCandidate matches");
   // static_assert(has_exact_foo<FooCandidate2>::value, "FooCandidate2 does not match");
   DoTheThing<FooCandidate> ext1;
 
+  WriteExtension<Writer> we;
+
 }
 
 
 
-int main2() {
-  if (__cplusplus == 202302L)
-    std::cout << "C++23";
-  else if (__cplusplus == 202002L)
-    std::cout << "C++20";
-  else if (__cplusplus == 201703L)
-    std::cout << "C++17";
-  else if (__cplusplus == 201402L)
-    std::cout << "C++14";
-  else if (__cplusplus == 201103L)
-    std::cout << "C++11";
-  else if (__cplusplus == 199711L)
-    std::cout << "C++98";
-  else
-    std::cout << "pre-standard C++." << __cplusplus;
-  std::cout << "\n";
+// int main2() {
+//   if (__cplusplus == 202302L)
+//     std::cout << "C++23";
+//   else if (__cplusplus == 202002L)
+//     std::cout << "C++20";
+//   else if (__cplusplus == 201703L)
+//     std::cout << "C++17";
+//   else if (__cplusplus == 201402L)
+//     std::cout << "C++14";
+//   else if (__cplusplus == 201103L)
+//     std::cout << "C++11";
+//   else if (__cplusplus == 199711L)
+//     std::cout << "C++98";
+//   else
+//     std::cout << "pre-standard C++." << __cplusplus;
+//   std::cout << "\n";
 
-  Writer nw;
-  Reader nr;
-  ComposedReadWriter crw;
+//   Writer nw;
+//   Reader nr;
+//   ComposedReadWriter crw;
 
-  // static casting
-  WriteInterface<Writer> *write_iface =
-      static_cast<WriteInterface<Writer> *>(&nw);
-  write_iface->write_api("hello from writer with extended write api\n", 42);
+//   // static casting
+//   WriteInterface<Writer> *write_iface =
+//       static_cast<WriteInterface<Writer> *>(&nw);
+//   write_iface->write_api("hello from writer with extended write api\n", 42);
 
-  // augmentation
-  WriteInterface<Writer> augmented_writer;
-  augmented_writer.write_api("hello from augmented writer with write api\n",
-                             43);
+//   // augmentation
+//   WriteInterface<Writer> augmented_writer;
+//   augmented_writer.write_api("hello from augmented writer with write api\n",
+//                              43);
 
-  // using the generic base
-  writable::assert(nw);
-  WriteInterface<writable::base<>> augmented_write_base;
-  augmented_write_base.bind(crw);
-  augmented_write_base.write_api("hello from macro generated write api!\n", 39);
+//   // using the generic base
+//   writable::assert(nw);
+//   WriteInterface<writable::base<>> augmented_write_base;
+//   augmented_write_base.bind(crw);
+//   augmented_write_base.write_api("hello from macro generated write api!\n", 39);
 
-  // using a generic read write base
-  readable::assert(crw);
-  ReadWriteInterface<readwritable::base<>> augmented_readwrite_base;
-  augmented_readwrite_base.bind(crw);
-  augmented_readwrite_base.write_api("hello from generic concept base!\n", 32);
+//   // using a generic read write base
+//   readable::assert(crw);
+//   ReadWriteInterface<readwritable::base<>> augmented_readwrite_base;
+//   augmented_readwrite_base.bind(crw);
+//   augmented_readwrite_base.write_api("hello from generic concept base!\n", 32);
 
-  // ReadWriteArchetype::ptr<ReadWriteInterface> ptr;
-  // ptr.bind(crw);
-  // ptr->write_api("hello from generic concept ptr!\n", 32);
+//   // ReadWriteArchetype::ptr<ReadWriteInterface> ptr;
+//   // ptr.bind(crw);
+//   // ptr->write_api("hello from generic concept ptr!\n", 32);
 
-  // Writable2::assert<Writer>();
+//   // Writable2::assert<Writer>();
 
-  // Writable2::ptr<WriteInterface> writable2_ptr;
-  // writable2_ptr.bind(nw);
-  // writable2_ptr->write_api("hello from macro generated ptr write api\n", 41);
+//   // Writable2::ptr<WriteInterface> writable2_ptr;
+//   // writable2_ptr.bind(nw);
+//   // writable2_ptr->write_api("hello from macro generated ptr write api\n", 41);
 
-  char buf[4096];
-  int read = 0;
-  while (1) {
-    read = augmented_readwrite_base.read_api(buf, sizeof(buf));
-    augmented_readwrite_base.write_api(buf, read);
-  }
-}
+//   char buf[4096];
+//   int read = 0;
+//   while (1) {
+//     read = augmented_readwrite_base.read_api(buf, sizeof(buf));
+//     augmented_readwrite_base.write_api(buf, read);
+//   }
+// }
