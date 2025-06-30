@@ -30,7 +30,7 @@ protected:
       EXPAND_ARCHETYPE_REQUIREMENTS(METHODS)                                   \
       )>> : std::true_type {};                                                 \
                                                                                \
-    template <typename B = archetype::Base> class base : public B {            \
+    template <typename B = archetype::Base> class component : public B {       \
       EXPAND_ARCHETYPE_METHODS(METHODS)                                        \
     public:                                                                    \
       template <typename T> void bind(T &t) {                                  \
@@ -42,10 +42,11 @@ protected:
       using B::_obj;                                                           \
       EXPAND_CALLSTUB_MEMBERS(METHODS)                                         \
     };                                                                         \
+    using view = NAME::component<>;                                            \
                                                                                \
     template <template <typename> class Interface> class ptr {                 \
     private:                                                                   \
-      using T = Interface<base<>>;                                             \
+      using T = Interface<view>;                                               \
       T impl;                                                                  \
                                                                                \
     public:                                                                    \
@@ -71,11 +72,12 @@ protected:
         > {};                                                                  \
                                                                                \
     template <typename B = archetype::Base>                                    \
-    class base : public EXPAND_COMPONENT_INHERITANCE(__VA_ARGS__) {};          \
+    class component : public EXPAND_COMPONENT_INHERITANCE(__VA_ARGS__) {};     \
                                                                                \
+    using view = NAME::component<>;                                            \
     template <template <typename> class Interface> class ptr {                 \
     private:                                                                   \
-      using T = Interface<base<>>;                                             \
+      using T = Interface<view>;                                               \
       T impl;                                                                  \
                                                                                \
     public:                                                                    \
@@ -126,7 +128,7 @@ protected:
 
 #define EXPAND_COMPONENT_ASSERTIONS(...) FOR_EACH_CALL(DO_ASSERT, __VA_ARGS__)
 
-#define APPEND_BASE(x) x::base
+#define APPEND_BASE(x) x::component
 
 #define APPEND_CHECK(x) x::check<T>::value
 
@@ -138,9 +140,6 @@ protected:
 
 #define EXPAND_COMPONENT_REQUIREMENTS(...)                                      \
   FOR_EACH_SEPX_CALL(APPEND_CHECK, &&, __VA_ARGS__)
-
-// #define EXPAND_COMPONENT_REQUIREMENTS_IMPL(...)                                 \
-//   TEMPLATE_CHAIN(__VA_ARGS__ COMMA_IF_ARGS(__VA_ARGS__) B)
 
 
 #define EXPAND(x) x
