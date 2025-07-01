@@ -87,17 +87,65 @@ private:
 
 
 
+class A{
+  public:
+  class wrapping;
+
+  protected:
+  template<typename T = archetype::Base>
+  class inaccesible_component : public T
+  {
+    protected:
+    void bind() { std::cout << "inaccesible_component bound" << std::endl; }
+
+    public:
+    friend class wrapping;
+  };
+  
+  public:
+  class component : public inaccesible_component<>
+  {
+    public:
+    void bind() { inaccesible_component::bind(); std::cout << "accessible_component bound" << std::endl; }
+  };
+
+  class wrapping
+  {
+    public:
+    void bind(){
+      std::cout << "wrapping bound" << std::endl;
+      impl.bind();  // OK now
+    }
+    private:
+    inaccesible_component<> impl;
+  };
+};
+
+template<class T> 
+class finder : public T 
+{
+  public:
+  template<typename C>
+  using accessible = class T::template inaccesible_component<C>;
+};
 
 
 int main()
 {
-  static_assert(!readwritable::check<Writer>::value, "Candidate being checked fails to match");
+  finder<A>::accessible<archetype::Base> instance;
+
+  
+  
+  A::component c;
+  A::wrapping w;
+  w.bind();
+  c.bind();
+  
+  // static_assert(!readwritable::check<Writer>::value, "Candidate being checked fails to match");
   // static_assert(has_exact_foo<FooCandidate2>::value, "FooCandidate2 does not match");
   // DoTheThing<FooCandidate> ext1;
   // WriteExtension<ComposedReadWriter> we;
 }
-
-
 
 // int main() {
 //   if (__cplusplus == 202302L)
@@ -132,12 +180,12 @@ int main()
 
 //   // using the generic base
   
-//   WriteInterface<writable::base<>> augmented_write_base;
+//   WriteInterface<writable::view> augmented_write_base;
 //   augmented_write_base.bind(crw);
 //   augmented_write_base.write_api("hello from macro generated write api!\n", 39);
 
 //   // using a generic read write base
-//   ReadWriteInterface<readwritable::base<>> augmented_readwrite_base;
+//   ReadWriteInterface<readwritable::view> augmented_readwrite_base;
 //   augmented_readwrite_base.bind(crw);
 //   augmented_readwrite_base.write_api("hello from generic concept base!\n", 32);
 
