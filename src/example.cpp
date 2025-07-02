@@ -85,18 +85,26 @@ private:
   Reader reader;
 };
 
-
+template<class C>
+class helper
+{
+  public:
+  template<typename T=archetype::Base>
+  using get_inaccesible = typename C::template inaccesible_component<T>;
+};
 
 class A{
   public:
   class wrapping;
+  friend class helper<A>; 
 
   protected:
   template<typename T = archetype::Base>
   class inaccesible_component : public T
   {
     protected:
-    void bind() { std::cout << "inaccesible_component bound" << std::endl; }
+    template<typename X>
+    void bind(X & obj) { T::bind(obj); std::cout << "A::inaccesible_component bound" << std::endl; }
 
     public:
     friend class wrapping;
@@ -106,40 +114,115 @@ class A{
   class component : public inaccesible_component<>
   {
     public:
-    void bind() { inaccesible_component::bind(); std::cout << "accessible_component bound" << std::endl; }
+    template<typename X>
+    void bind(X & obj) { inaccesible_component<>::bind(obj); std::cout << "A::component bound" << std::endl; }
   };
 
   class wrapping
   {
     public:
-    void bind(){
-      std::cout << "wrapping bound" << std::endl;
-      impl.bind();  // OK now
+    template<typename X>
+    void bind(X & obj){
+      std::cout << "A::wrapping bound" << std::endl;
+      impl.bind(obj);  // OK now
     }
     private:
     inaccesible_component<> impl;
   };
 };
 
-template<class T> 
-class finder : public T 
-{
+class B{
   public:
-  template<typename C>
-  using accessible = class T::template inaccesible_component<C>;
+  class wrapping;
+  friend class helper<B>; 
+
+  protected:
+  template<typename T = archetype::Base>
+  class inaccesible_component : public T
+  {
+    protected:
+    template<typename X>
+    void bind(X & obj) { T::bind(obj); std::cout << "B::inaccesible_component bound" << std::endl; }
+
+    public:
+    friend class wrapping;
+  };
+  
+  public:
+  class component : public inaccesible_component<>
+  {
+    public:
+    template<typename X>
+    void bind(X & obj) { inaccesible_component<>::bind(obj); std::cout << "B::component bound" << std::endl; }
+  };
+
+  class wrapping
+  {
+    public:
+    template<typename X>
+    void bind(X & obj){
+      std::cout << "B::wrapping bound" << std::endl;
+      impl.bind(obj);  // OK now
+    }
+    private:
+    inaccesible_component<> impl;
+  };
 };
+
+
+class C{
+  public:
+  class wrapping;
+  friend class helper<C>; 
+
+  protected:
+  template<typename T = archetype::Base>
+  class inaccesible_component : public helper<B>::get_inaccesible<helper<A>::get_inaccesible<T>> 
+  {
+    public:
+    friend class wrapping;
+  };
+  
+  public:
+  class component : public inaccesible_component<>
+  {
+    public:
+    template<typename X>
+    void bind(X & obj) { inaccesible_component::bind(obj); std::cout << "C::component bound" << std::endl; }
+  };
+
+  class wrapping
+  {
+    public:
+    template<typename X>
+    void bind(X & obj){
+      std::cout << "C::wrapping bound" << std::endl;
+      impl.bind(obj);  // OK now
+    }
+    private:
+    inaccesible_component<> impl;
+  };
+};
+
+
 
 
 int main()
 {
-  finder<A>::accessible<archetype::Base> instance;
+  // finder<A>::accessible<archetype::Base> instance;
+  helper<A>::get_inaccesible<helper<B>::get_inaccesible<>> ab_chain;
+  
+  Writer w;
+  C::component c;
+  c.bind(w);
+
+  C::wrapping w_c;
+  w_c.bind(w);
 
   
   
-  A::component c;
-  A::wrapping w;
-  w.bind();
-  c.bind();
+  
+  
   
   // static_assert(!readwritable::check<Writer>::value, "Candidate being checked fails to match");
   // static_assert(has_exact_foo<FooCandidate2>::value, "FooCandidate2 does not match");
