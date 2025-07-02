@@ -11,7 +11,7 @@ DEFINE_ARCHETYPE(readable, (
   DEFINE_METHOD(int, read, char *, size_t)
 ))
 
-COMPOSE_ARCHETYPE(readwritable, readable, writable)
+// COMPOSE_ARCHETYPE(readwritable, readable, writable)
 
 
 #define ARCHETYPE_CHECK(A, T)\
@@ -37,8 +37,8 @@ public:
 };
 
 // Composed interfaces
-template <ARCHETYPE_CHECK(readwritable, RW)>
-class ReadWriteInterface : public ReadInterface<WriteInterface<RW>> {};
+// template <ARCHETYPE_CHECK(readwritable, RW)>
+// class ReadWriteInterface : public ReadInterface<WriteInterface<RW>> {};
 
 
 // These are implementations provided by an external library
@@ -211,8 +211,19 @@ int main()
 {
   // finder<A>::accessible<archetype::Base> instance;
   helper<A>::get_inaccesible<helper<B>::get_inaccesible<>> ab_chain;
+  archetype::helper<writable>::get<archetype::helper<readable>::get<>> wr_chain;
   
+
   Writer w;
+  writable::view w_view;
+  WriteInterface<writable::view> wapi_view;
+  // writable::ptr<WriteInterface> w_ptr;
+
+  wapi_view.bind(w);
+  // w_ptr.bind(w);
+  
+
+  
   C::component c;
   c.bind(w);
 

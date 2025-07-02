@@ -13,15 +13,27 @@ public:
 protected:
   void *_obj;
 };
+
+template<class C>
+class helper
+{
+  public:
+  template<typename T=archetype::Base>
+  using get = typename C::template component<T>;
+};
 } // namespace archetype
+
 
 
 #define DEFINE_ARCHETYPE(NAME, METHODS)                                        \
   struct NAME {                                                                \
     NAME() = delete;                                                           \
                                                                                \
+    public:                                                                    \             
+    friend class archetype::helper<NAME>;                                      \
                                                                                \
-  public:                                                                      \
+                                                                               \
+    /* SFINAE based type checking against requirements */                      \
     template<typename, typename = void>                                        \
     struct check : std::false_type {};                                         \
                                                                                \
@@ -30,23 +42,37 @@ protected:
       EXPAND_ARCHETYPE_REQUIREMENTS(METHODS)                                   \
       )>> : std::true_type {};                                                 \
                                                                                \
+                                                                               \
+    /* Internal protected component */                                         \
+    protected:                                                                 \
     template <typename B = archetype::Base> class component : public B {       \
+      public:                                                                  \
+      /* friends with the ptr class here*/                                     \
       EXPAND_ARCHETYPE_METHODS(METHODS)                                        \
-    public:                                                                    \
+                                                                               \
+      protected:                                                               \
       template <typename T> void bind(T &t) {                                  \
         this->B::bind(t);                                                      \
         EXPAND_CALLSTUB_ASSIGNMENTS(METHODS)                                   \
       }                                                                        \
                                                                                \
-    protected:                                                                 \
+      protected:                                                               \
       using B::_obj;                                                           \
       EXPAND_CALLSTUB_MEMBERS(METHODS)                                         \
     };                                                                         \
-    using view = NAME::component<>;                                            \
+                                                                               \
+                                                                               \
+    /* Public view, exposes component interface*/                              \
+    public:                                                                    \
+    class view : public component<>                                            \
+    {                                                                          \
+      public:                                                                  \
+      using component<>::bind;                                                 \
+    };                                                                         \
                                                                                \
     template <template <typename> class Interface> class ptr {                 \
     private:                                                                   \
-      using T = Interface<view>;                                               \
+      using T = Interface<view>;                                        \
       T impl;                                                                  \
                                                                                \
     public:                                                                    \
