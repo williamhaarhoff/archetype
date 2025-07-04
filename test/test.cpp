@@ -1,4 +1,6 @@
+#define CATCH_CONFIG_FAST_COMPILE
 #include <catch2/catch.hpp>
+#include "archetype/archeype.h"
 
 SCENARIO("basic math", "[basics]") {
   GIVEN("addition works") {
