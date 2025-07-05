@@ -33,10 +33,9 @@ class identity : public BASE {};
   struct NAME {                                                               \
     NAME() = delete;                                                          \
                                                                               \
-    public:                                                                   \             
-    friend class archetype::helper<NAME>;                                     \
+    public: friend class archetype::helper<NAME>;                             \
                                                                               \
-    template <template <typename> class Interface>                           \
+    template <template <typename> class Interface>                            \
     class ptr;                                                                \
                                                                               \
                                                                               \
@@ -80,7 +79,6 @@ class identity : public BASE {};
     };                                                                        \
                                                                               \
                                                                               \
-    /*Convenience class, for ptr syntax*/                                     \                                                                                                                                                              
     template <template <typename> class Interface = archetype::identity>      \
     class ptr                                                                 \
     {                                                                         \
@@ -135,7 +133,7 @@ class identity : public BASE {};
       using component<>::bind;                                                \
     };                                                                        \
                                                                               \
-    /*Convenience class, for ptr syntax */       \                                                                                                                                                              
+    /*Convenience class, for ptr syntax */                                    \
     template <template <typename> class Interface = archetype::identity>      \
     class ptr                                                                 \
     {                                                                         \
@@ -327,8 +325,6 @@ class identity : public BASE {};
 
 #define GET_FOR_EACH_SEPX_CALL(N) CAT(FOR_EACH_SEPX_CALL_, N)
 
-// #define ARCHETYPE_METHOD(ret, name, ...)                                 \
-//   public: ret name(__VA_ARGS__) { return _##name_stub(_obj, __VA_ARGS__); }
 
 // count arguments - ##__VA_ARGS__ is not portable
 #define M_NARGS(...)                                                           \
@@ -457,51 +453,5 @@ public:                                                                        \
 #define ARCHETYPE_REQUIREMENT(unique_name, ret, name, ...)\
   static_cast<ret (T::*)(TYPED_ARGS(M_NARGS(__VA_ARGS__), __VA_ARGS__))>(&T::name)
 
-
-
-
-// COMMA_IF_ARGS()
-// COMMA_IF_ARGS(1)
-// COMMA_IF_ARGS(2)
-
-// COUNT_ARGS()
-// COUNT_ARGS(a)
-// COUNT_ARGS(b, c)
-
-// DEFINE_ARCHETYPE(Writable3, (
-//   DEFINE_METHOD(size_t, write, const char *, size_t),
-//   DEFINE_METHOD(size_t, write)
-// ))
-
-// #define APPEND_BASE_TO_EACH(...) (FOR_EACH_SEP_CALL(APPEND_BASE,
-// __VA_ARGS__))
-
-// APPEND_BASE_TO_EACH(w, r)
-
-// EXPAND_COMPONENT_INHERITANCE(w, r)
-
-// COMPOSE_ARCHETYPE(readwritable, writable, readable)
-// #define EXPAND_COMPONENT_ASSERTIONS(...) FOR_EACH(DO_ASSERT, __VA_ARGS__)
-
-// EXPAND_COMPONENT_ASSERTIONS(writable, readable, somethingable)
-// COMPONENT_ASSERTION(writable) COMPONENT_ASSERTION(readable)
-// COMPONENT_ASSERTION(somethingable) DEFINE_ARCHETYPE(writable, (
-//   DEFINE_METHOD(int, write, const char *, size_t)
-// ))
-
-// DEFINE_ARCHETYPE(readable, (
-//   DEFINE_METHOD(int, read, char *, size_t)
-// ))
-
-// #define EXPAND_CONCAT_ARGS(METHODS)                                \
-//   EXPAND_CONCAT_ARGS_IMPL METHODS
-
-// #define EXPAND_CONCAT_ARGS_IMPL(...)                               \
-//   FOR_EACH(DROP2, __VA_ARGS__)
-
-// #define DROP2(_1, _2, ...) __VA_ARGS__
-// #define PROCESS_ONE(tuple) DROP2 tuple
-
-// FLATTEN_ARGS(((size_t, write, int, char), (size_t, write, int, char)))
 
 #endif //__ARCHETYPE_H__

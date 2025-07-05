@@ -8,9 +8,8 @@ include(Catch)
 # archetype-test 
 add_executable(
   archetype-test
-  fast_build.cpp
-  #main.cpp
-  #test.cpp
+  main.cpp
+  test.cpp
 )
 
 target_include_directories(
@@ -27,13 +26,11 @@ target_compile_options(
   -Werror
 )
 
-#target_link_libraries(
-#  archetype-test 
-#  Catch2::Catch2
-#)
+target_link_libraries(
+  archetype-test 
+  Catch2::Catch2
+)
 
-
-
-#catch_discover_tests(
-#  archetype-test
-#)
+catch_discover_tests(
+  archetype-test
+)

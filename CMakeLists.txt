@@ -14,7 +14,7 @@ include_directories(
 
 add_executable(archetype src/example.cpp)
 
-option(TESTING "Enable tests." OFF)
+option(TESTING "Enable tests." ON)
 
 if(TESTING)
   enable_testing()

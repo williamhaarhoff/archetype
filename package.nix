@@ -7,7 +7,8 @@
 , stdenv
 , cmake
 , catch2
-, enableTests ? true
+, doctest
+, enableTests ? false
 }:
 
 # stdenv.mkDerivation now accepts a list of named parameters that describe
@@ -29,11 +30,13 @@ stdenv.mkDerivation {
   # Distinguishing between `nativeBuildInputs` (runnable on the host
   # at compile time) and normal `buildInputs` (runnable on target
   # platform at run time) is an important preparation for cross-compilation.
-  nativeBuildInputs = [ cmake ];
-  buildInputs = [ catch2 ];
+  nativeBuildInputs = [ catch2 cmake doctest ];
+  buildInputs = [ ];
+  checkInputs = [ ];
 
   # Instruct the build process to run tests.
   # The generic builder script of `mkDerivation` handles all the default
   # command lines of several build systems, so it knows how to run our tests.
   doCheck = enableTests;
+  cmakeFlags = lib.optional (!enableTests) "-DTESTING=off";
 }
