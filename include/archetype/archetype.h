@@ -72,10 +72,10 @@ class identity : public BASE {};
                                                                               \
     /* Public view, exposes component interface*/                             \
     public:                                                                   \
-    class view : public component<>                                           \
+    class view : public component<archetype::Base>                            \
     {                                                                         \
       public:                                                                 \
-      using component<>::bind;                                                \
+      using component<archetype::Base>::bind;                                 \
     };                                                                        \
                                                                               \
                                                                               \
@@ -424,7 +424,7 @@ public:                                                                        \
 
 // uses comma swallowing trick
 #define CALLSTUB_MEMBER(unique_name, ret, name, ...)                           \
-  ret (*_##unique_name##_stub)(void *obj, ##__VA_ARGS__);
+  ret (*_##unique_name##_stub)(void *obj COMMA_IF_ARGS(__VA_ARGS__) __VA_ARGS__);
 
 #define CONCEPT_REQUIREMENT(unique_name, ret, name, ...)                       \
   template <typename, typename = void>                                         \
@@ -452,6 +452,14 @@ public:                                                                        \
 
 #define ARCHETYPE_REQUIREMENT(unique_name, ret, name, ...)\
   static_cast<ret (T::*)(TYPED_ARGS(M_NARGS(__VA_ARGS__), __VA_ARGS__))>(&T::name)
+
+
+// DEFINE_ARCHETYPE(basic0, (
+//   DEFINE_METHOD(void, func0)
+// ))
+
+
+
 
 
 #endif //__ARCHETYPE_H__

@@ -11,16 +11,30 @@ DEFINE_ARCHETYPE(readable, (
   DEFINE_METHOD(int, read, char *, size_t)
 ))
 
-// COMPOSE_ARCHETYPE(readwritable, readable, writable)
+DEFINE_ARCHETYPE(testing, (
+  DEFINE_METHOD(int, test, char *, size_t)
+))
 
 
-#define ARCHETYPE_CHECK(A, T)\
+
+COMPOSE_ARCHETYPE(readwritable, readable, writable)
+
+COMPOSE_ARCHETYPE(testreadwritable, testing, readwritable)
+
+
+
+
+#define ARCHETYPE_CHECK_OLD(A, T)\
   typename T, \
   typename = typename std::enable_if<A::check<T>::value>::type
 
+#define ARCHETYPE_CHECK(ARCHETYPE, TYPE)\
+static_assert(ARCHETYPE::check<TYPE>::value, STRINGIFY(TYPE must satisfy ARCHETYPE::check));
+
 
 // Stateless interfaces
-template <ARCHETYPE_CHECK(writable, W)> class WriteInterface : public W {
+template <typename  W> class WriteInterface : public W {
+  ARCHETYPE_CHECK(writable, W)
 public:
   using W::W;
   using W::write;
@@ -29,7 +43,37 @@ public:
   }
 };
 
-template <ARCHETYPE_CHECK(readable, R)> class ReadInterface : public R {
+template <typename W> class WriteInterfacePlain : public W {
+  ARCHETYPE_CHECK(writable, W)
+  public:
+  using W::W;
+  using W::write;
+  size_t write_api(const char *buf, size_t size) {
+    return this->write(buf, size);
+  }
+};
+
+
+
+
+// template <typename W, std::true_type> 
+// class WriteInterfaceTagged : public W {
+// public:
+//   using W::W;
+//   using W::write;
+//   size_t write_api(const char *buf, size_t size) {
+//     return this->write(buf, size);
+//   }
+// };
+
+
+
+
+
+
+
+template <typename R> class ReadInterface : public R {
+  ARCHETYPE_CHECK(readable, R)
 public:
   using R::R;
   using R::read;
@@ -83,6 +127,21 @@ public:
 private:
   Writer writer;
   Reader reader;
+};
+
+
+class Tester
+{
+  public:
+  int test(char * buf, size_t size);
+};
+
+class TesterReaderWriter 
+: public Tester
+, public Writer
+, public Reader
+{
+
 };
 
 template<class C>
@@ -207,6 +266,7 @@ class C{
 
 
 
+
 int main()
 {
   // finder<A>::accessible<archetype::Base> instance;
@@ -217,9 +277,34 @@ int main()
   Writer w;
   writable::view w_view;
   WriteInterface<writable::view> wapi_view;
-  // writable::ptr<WriteInterface> w_ptr;
+  writable::ptr<WriteInterfacePlain> w_ptr;
+
+
+  ComposedReadWriter crw;
+  readwritable::view rwv; 
+  rwv.bind(crw);
+
+  static_assert(readwritable::check<ComposedReadWriter>(), "Failed composed read writer check" );
+
+  writable::ptr<> wptr;
+  wptr.bind(w);
+  wptr->write("asdfasdfasdf", 5);
+
+  readwritable::ptr<> rwptr;
+  rwptr.bind(crw);
+
+  TesterReaderWriter trw;
+  testreadwritable::view trwv;
+  testreadwritable::ptr<> trwvp;
+  trwv.bind(trw);
+  trwvp.bind(trw);
+  
+
+
+
 
   wapi_view.bind(w);
+  // ptr<WriteInterface> xx;
   // w_ptr.bind(w);
   
 
@@ -238,7 +323,12 @@ int main()
   // static_assert(!readwritable::check<Writer>::value, "Candidate being checked fails to match");
   // static_assert(has_exact_foo<FooCandidate2>::value, "FooCandidate2 does not match");
   // DoTheThing<FooCandidate> ext1;
-  // WriteExtension<ComposedReadWriter> we;
+  // WriteInterfacePlain<ComposedReadWriter> we;
+
+  static_assert(writable::check<Writer>::value, "writer check");
+
+  // WriteInterfacePlain<Reader> wir;
+
 }
 
 // int main() {

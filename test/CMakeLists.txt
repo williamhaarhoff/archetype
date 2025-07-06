@@ -2,14 +2,14 @@ include(CTest)
 
 find_package(
   Catch2 REQUIRED
+  doctest REQUIRED
 )
 include(Catch)
 
-# archetype-test 
+
 add_executable(
   archetype-test
   main.cpp
-  test.cpp
 )
 
 target_include_directories(
@@ -26,11 +26,10 @@ target_compile_options(
   -Werror
 )
 
-target_link_libraries(
-  archetype-test 
-  Catch2::Catch2
+target_compile_features(
+  archetype-test
+  PRIVATE cxx_std_11
 )
 
-catch_discover_tests(
-  archetype-test
-)
+
+
