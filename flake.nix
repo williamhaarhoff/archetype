@@ -25,11 +25,16 @@
         # The `callPackage` automatically fills the parameters of the function
         # in package.nix with what's inside the `pkgs` attribute.
         packages.test = pkgs.callPackage ./package.nix { enableTests=true; };
-        packages.default = pkgs.callPackage ./package.nix { enableTests=false; };
+        packages.no-test = pkgs.callPackage ./package.nix { enableTests=false; };
+        packages.default = pkgs.callPackage ./package.nix { };
 
         # The `config` variable contains our own outputs, so we can reference
         # neighbor attributes like the package we just defined one line earlier.
         devShells.default = config.packages.default;
+
+        checks = {
+          test = config.packages.test;
+        };
       };
     };
 }

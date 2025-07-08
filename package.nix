@@ -6,7 +6,6 @@
 { lib
 , stdenv
 , cmake
-, catch2
 , doctest
 , enableTests ? true
 }:
@@ -30,7 +29,7 @@ stdenv.mkDerivation {
   # Distinguishing between `nativeBuildInputs` (runnable on the host
   # at compile time) and normal `buildInputs` (runnable on target
   # platform at run time) is an important preparation for cross-compilation.
-  nativeBuildInputs = [ catch2 cmake doctest ];
+  nativeBuildInputs = [ cmake doctest];
   buildInputs = [ ];
   checkInputs = [ ];
 
