@@ -8,7 +8,7 @@
 , cmake
 , catch2
 , doctest
-, enableTests ? false
+, enableTests ? true
 }:
 
 # stdenv.mkDerivation now accepts a list of named parameters that describe
