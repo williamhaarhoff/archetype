@@ -1,0 +1,29 @@
+name: Windows CMake Build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up CMake
+      uses: jwlawson/actions-setup-cmake@v1
+
+    - name: Create build directory
+      run: cmake -E make_directory build
+
+    - name: Configure CMake
+      working-directory: ./build
+      run: cmake ..
+
+    - name: Build
+      working-directory: ./build
+      run: cmake --build . --config Release
