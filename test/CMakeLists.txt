@@ -11,14 +11,6 @@ target_include_directories(
   ${CMAKE_SOURCE_DIR}/include
 )
 
-target_compile_options(
-  archetype-macro-test
-  PRIVATE 
-  -Wall 
-  -Wextra 
-  -Werror
-)
-
 target_compile_features(
   archetype-macro-test
   PRIVATE cxx_std_11
