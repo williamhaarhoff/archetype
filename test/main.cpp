@@ -200,8 +200,4 @@ TEST_CASE("ARCHETYPE_COMPOSE") {
     CHECK(satisfies_ab::check<ACD>::value == false);
     CHECK(satisfies_ab::check<BCD>::value == false);
   }
-
-  SUBCASE("Deliberate failure") {
-    CHECK(1+1==3);
-  }
 }
