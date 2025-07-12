@@ -33,8 +33,8 @@ add_custom_target(
 
 
 # only running full tests on linux and macos
-# expansion tests should suffice for windows
-if(!WIN32)
+# macro expansion tests should suffice for windows
+if(NOT WIN32)
 
   find_package(doctest REQUIRED)
   include(doctest)

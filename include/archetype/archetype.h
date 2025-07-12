@@ -14,148 +14,119 @@ protected:
   void *_obj;
 };
 
-// helper to expose protected component to perform inheritance chaining
-template<class C>
-class helper
-{
-  public:
-  template<typename T=archetype::Base>
+// components friend this helper for use in inheritance chaining
+template <class C> class helper {
+public:
+  template <typename T = archetype::Base>
   using get = typename C::template component<T>;
 };
 
-template<class BASE>
-class identity : public BASE {};
+template <class BASE> class identity : public BASE {};
 } // namespace archetype
 
-
-
-#define DEFINE_ARCHETYPE(NAME, METHODS)                                       \
-  struct NAME {                                                               \
-    NAME() = delete;                                                          \
-                                                                              \
-    public: friend class archetype::helper<NAME>;                             \
-                                                                              \
-    template <template <typename> class Interface>                            \
-    class ptr;                                                                \
-                                                                              \
-                                                                              \
-    /* SFINAE based type checking against requirements */                     \
-    template<typename, typename = void>                                       \
-    struct check : std::false_type {};                                        \
-                                                                              \
-    template<typename T>                                                      \
-    struct check<T, std::void_t<decltype(                                     \
-      EXPAND_ARCHETYPE_REQUIREMENTS(METHODS)                                  \
-      )>> : std::true_type {};                                                \
-                                                                              \
-                                                                              \
-    /* Internal protected view component implementation */                    \
-    protected:                                                                \
-    template <typename B = archetype::Base>                                   \
-    class component : public B                                                \
-    {                                                                         \
-      public:                                                                 \
-      template <template <typename> class Interface>                          \
-      friend class ptr;                                                       \
-      EXPAND_ARCHETYPE_METHODS(METHODS)                                       \
-                                                                              \
-      protected:                                                              \
-      template <typename T> void bind(T &t) {                                 \
-        this->B::bind(t);                                                     \
-        EXPAND_CALLSTUB_ASSIGNMENTS(METHODS)                                  \
-      }                                                                       \
-                                                                              \
-      using B::_obj;                                                          \
-      EXPAND_CALLSTUB_MEMBERS(METHODS)                                        \
-    };                                                                        \
-                                                                              \
-                                                                              \
-    /* Public view, exposes component interface*/                             \
-    public:                                                                   \
-    class view : public component<archetype::Base>                            \
-    {                                                                         \
-      public:                                                                 \
-      using component<archetype::Base>::bind;                                 \
-    };                                                                        \
-                                                                              \
-                                                                              \
-    template <template <typename> class Interface = archetype::identity>      \
-    class ptr                                                                 \
-    {                                                                         \
-    private:                                                                  \
-      using T = Interface<component<>>;                                       \
-      T impl;                                                                 \
-                                                                              \
-    public:                                                                   \
-      template <typename CONCEPT>                                             \
-      void bind(CONCEPT &ref) {                                               \
-        impl.bind(ref);                                                       \
-      }                                                                       \
-                                                                              \
-      T &operator*() { return &impl; }                                        \
-      const T &operator*() const { return &impl; }                            \
-                                                                              \
-      T *operator->() { return &impl; }                                       \
-      const T *operator->() const { return &impl; }                           \
-    };                                                                        \
-                                                                              \
+#define DEFINE_ARCHETYPE(NAME, METHODS)                                        \
+  struct NAME {                                                                \
+    NAME() = delete;                                                           \
+                                                                               \
+  public:                                                                      \
+    friend class archetype::helper<NAME>;                                      \
+                                                                               \
+    template <template <typename> class Interface> class ptr;                  \
+                                                                               \
+    /* SFINAE based type checking against requirements */                      \
+    template <typename, typename = void> struct check : std::false_type {};    \
+                                                                               \
+    template <typename T>                                                      \
+    struct check<                                                              \
+        T, std::void_t<decltype(EXPAND_ARCHETYPE_REQUIREMENTS(METHODS))>>      \
+        : std::true_type {};                                                   \
+                                                                               \
+    /* Internal protected view component implementation */                     \
+  protected:                                                                   \
+    template <typename B = archetype::Base> class component : public B {       \
+    public:                                                                    \
+      template <template <typename> class Interface> friend class ptr;         \
+      EXPAND_ARCHETYPE_METHODS(METHODS)                                        \
+                                                                               \
+    protected:                                                                 \
+      template <typename T> void bind(T &t) {                                  \
+        this->B::bind(t);                                                      \
+        EXPAND_CALLSTUB_ASSIGNMENTS(METHODS)                                   \
+      }                                                                        \
+                                                                               \
+      using B::_obj;                                                           \
+      EXPAND_CALLSTUB_MEMBERS(METHODS)                                         \
+    };                                                                         \
+                                                                               \
+    /* Public view, exposes component interface*/                              \
+  public:                                                                      \
+    class view : public component<archetype::Base> {                           \
+    public:                                                                    \
+      using component<archetype::Base>::bind;                                  \
+    };                                                                         \
+                                                                               \
+    template <template <typename> class Interface = archetype::identity>       \
+    class ptr {                                                                \
+    private:                                                                   \
+      using T = Interface<component<>>;                                        \
+      T impl;                                                                  \
+                                                                               \
+    public:                                                                    \
+      template <typename CONCEPT> void bind(CONCEPT &ref) { impl.bind(ref); }  \
+                                                                               \
+      T &operator*() { return &impl; }                                         \
+      const T &operator*() const { return &impl; }                             \
+                                                                               \
+      T *operator->() { return &impl; }                                        \
+      const T *operator->() const { return &impl; }                            \
+    };                                                                         \
   };
 
-#define COMPOSE_ARCHETYPE(NAME, ...)                                          \
-  struct NAME {                                                               \
-    NAME() = delete;                                                          \
-                                                                              \
-  public:                                                                     \
-                                                                              \
-    template <template <typename> class Interface>                            \
-    class ptr;                                                                \
-                                                                              \
-    template<typename T>                                                      \
-    struct check                                                              \
-      : std::integral_constant<bool,                                          \
-        EXPAND_COMPONENT_REQUIREMENTS(__VA_ARGS__)                            \
-        > {};                                                                 \
-                                                                              \
-    protected:                                                                \
-    template <typename B = archetype::Base>                                   \
-    class component : public EXPAND_COMPONENT_INHERITANCE(__VA_ARGS__)        \
-    {                                                                         \
-      public:                                                                 \
-      template <template <typename> class Interface>                          \
-      friend class ptr;                                                       \
-    };                                                                        \
-                                                                              \
-    /* Public view, exposes component interface*/                             \
-    public:                                                                   \
-    class view : public component<>                                           \
-    {                                                                         \
-      public:                                                                 \
-      using component<>::bind;                                                \
-    };                                                                        \
-                                                                              \
-    /*Convenience class, for ptr syntax */                                    \
-    template <template <typename> class Interface = archetype::identity>      \
-    class ptr                                                                 \
-    {                                                                         \
-    private:                                                                  \
-      using T = Interface<component<>>;                                       \
-      T impl;                                                                 \
-                                                                              \
-    public:                                                                   \
-      template <typename CONCEPT>                                             \
-      void bind(CONCEPT &ref) {                                               \
-        impl.bind(ref);                                                       \
-      }                                                                       \
-                                                                              \
-      T &operator*() { return &impl; }                                        \
-      const T &operator*() const { return &impl; }                            \
-                                                                              \
-      T *operator->() { return &impl; }                                       \
-      const T *operator->() const { return &impl; }                           \
-    };                                                                        \
+#define COMPOSE_ARCHETYPE(NAME, ...)                                           \
+  struct NAME {                                                                \
+    NAME() = delete;                                                           \
+                                                                               \
+  public:                                                                      \
+    friend class archetype::helper<NAME>;                                      \
+    template <template <typename> class Interface> class ptr;                  \
+                                                                               \
+    template <typename T>                                                      \
+    struct check                                                               \
+        : std::integral_constant<bool,                                         \
+                                 EXPAND_COMPONENT_REQUIREMENTS(__VA_ARGS__)> { \
+    };                                                                         \
+                                                                               \
+  protected:                                                                   \
+    template <typename B = archetype::Base>                                    \
+    class component : public EXPAND_COMPONENT_INHERITANCE(__VA_ARGS__) {       \
+    public:                                                                    \
+      template <template <typename> class Interface> friend class ptr;         \
+    };                                                                         \
+                                                                               \
+    /* Public view, exposes component interface*/                              \
+  public:                                                                      \
+    class view : public component<> {                                          \
+    public:                                                                    \
+      using component<>::bind;                                                 \
+    };                                                                         \
+                                                                               \
+    /*Convenience class, for ptr syntax */                                     \
+    template <template <typename> class Interface = archetype::identity>       \
+    class ptr {                                                                \
+    private:                                                                   \
+      using T = Interface<component<>>;                                        \
+      T impl;                                                                  \
+                                                                               \
+    public:                                                                    \
+      template <typename CONCEPT> void bind(CONCEPT &ref) { impl.bind(ref); }  \
+                                                                               \
+      T &operator*() { return &impl; }                                         \
+      const T &operator*() const { return &impl; }                             \
+                                                                               \
+      T *operator->() { return &impl; }                                        \
+      const T *operator->() const { return &impl; }                            \
+    };                                                                         \
   };
-
-
 
 #define EXPAND_ARCHETYPE_METHODS(METHODS) EXPAND_ARCHETYPE_METHODS_IMPL METHODS
 
@@ -178,10 +149,10 @@ class identity : public BASE {};
 #define EXPAND_CONCEPT_REQUIREMENTS_IMPL(...)                                  \
   FOR_EACH(CONCEPT_REQUIREMENT, __VA_ARGS__)
 
-#define EXPAND_ARCHETYPE_REQUIREMENTS(METHODS)                                   \
+#define EXPAND_ARCHETYPE_REQUIREMENTS(METHODS)                                 \
   EXPAND_ARCHETYPE_REQUIREMENTS_IMPL METHODS
 
-#define EXPAND_ARCHETYPE_REQUIREMENTS_IMPL(...)                                  \
+#define EXPAND_ARCHETYPE_REQUIREMENTS_IMPL(...)                                \
   FOR_EACH_SEP(ARCHETYPE_REQUIREMENT, __VA_ARGS__)
 
 #define EXPAND_CONCEPT_ASSERTIONS(METHODS)                                     \
@@ -201,15 +172,12 @@ class identity : public BASE {};
 #define EXPAND_COMPONENT_INHERITANCE_IMPL(...)                                 \
   TEMPLATE_CHAIN(__VA_ARGS__ COMMA_IF_ARGS(__VA_ARGS__) B)
 
-
 #define EXPAND_COMPONENT_INHERITANCE(...)                                      \
-  EXPAND_COMPONENT_INHERITANCE_IMPL(FOR_EACH_SEP_CALL(APPLY_HELPER, __VA_ARGS__))
+  EXPAND_COMPONENT_INHERITANCE_IMPL(                                           \
+      FOR_EACH_SEP_CALL(APPLY_HELPER, __VA_ARGS__))
 
-
-
-#define EXPAND_COMPONENT_REQUIREMENTS(...)                                      \
+#define EXPAND_COMPONENT_REQUIREMENTS(...)                                     \
   FOR_EACH_SEPX_CALL(APPEND_CHECK, &&, __VA_ARGS__)
-
 
 #define EXPAND(x) x
 #define EXPAND2(x) EXPAND(EXPAND(x))
@@ -242,21 +210,20 @@ class identity : public BASE {};
 #define FE9_2(M, T, x, ...) M(T, x) FE8_2(M, T, __VA_ARGS__)
 #define FE10_2(M, T, x, ...) M(T, x) FE9_2(M, T, __VA_ARGS__)
 
-
-#define FOR_EACH_SEP(M, ...)                                                       \
-  EXPAND(GET_MACRO(__VA_ARGS__, FES10, FES9, FES8, FES7, FES6, FES5, FES4, FES3, FES2,  \
-                   FES1)(M, __VA_ARGS__))
+#define FOR_EACH_SEP(M, ...)                                                   \
+  EXPAND(GET_MACRO(__VA_ARGS__, FES10, FES9, FES8, FES7, FES6, FES5, FES4,     \
+                   FES3, FES2, FES1)(M, __VA_ARGS__))
 
 #define FES1(M, x) M x
-#define FES2(M, x, ...) M x ,FE1(M, __VA_ARGS__)
-#define FES3(M, x, ...) M x ,FE2(M, __VA_ARGS__)
-#define FES4(M, x, ...) M x ,FE3(M, __VA_ARGS__)
-#define FES5(M, x, ...) M x ,FE4(M, __VA_ARGS__)
-#define FES6(M, x, ...) M x ,FE5(M, __VA_ARGS__)
-#define FES7(M, x, ...) M x ,FE6(M, __VA_ARGS__)
-#define FES8(M, x, ...) M x ,FE7(M, __VA_ARGS__)
-#define FES9(M, x, ...) M x ,FE8(M, __VA_ARGS__)
-#define FES10(M, x, ...) M x ,FE9(M, __VA_ARGS__)
+#define FES2(M, x, ...) M x, FE1(M, __VA_ARGS__)
+#define FES3(M, x, ...) M x, FE2(M, __VA_ARGS__)
+#define FES4(M, x, ...) M x, FE3(M, __VA_ARGS__)
+#define FES5(M, x, ...) M x, FE4(M, __VA_ARGS__)
+#define FES6(M, x, ...) M x, FE5(M, __VA_ARGS__)
+#define FES7(M, x, ...) M x, FE6(M, __VA_ARGS__)
+#define FES8(M, x, ...) M x, FE7(M, __VA_ARGS__)
+#define FES9(M, x, ...) M x, FE8(M, __VA_ARGS__)
+#define FES10(M, x, ...) M x, FE9(M, __VA_ARGS__)
 
 #define FES1_2(M, T, x) M(T, x)
 #define FES2_2(M, T, x, ...) M(T, x), FE1_2(M, T, __VA_ARGS__)
@@ -268,8 +235,6 @@ class identity : public BASE {};
 #define FES8_2(M, T, x, ...) M(T, x), FE7_2(M, T, __VA_ARGS__)
 #define FES9_2(M, T, x, ...) M(T, x), FE8_2(M, T, __VA_ARGS__)
 #define FES10_2(M, T, x, ...) M(T, x), FE9_2(M, T, __VA_ARGS__)
-
-
 
 #define FOR_EACH_CALL_1(M, a1) M(a1)
 #define FOR_EACH_CALL_2(M, a1, a2) M(a1) M(a2)
@@ -306,25 +271,46 @@ class identity : public BASE {};
 
 #define GET_FOR_EACH_SEP_CALL(N) CAT(FOR_EACH_SEP_CALL_, N)
 
-
 #define FOR_EACH_SEPX_CALL_1(M, X, a1) M(a1)
 #define FOR_EACH_SEPX_CALL_2(M, X, a1, a2) M(a1) X M(a2)
-#define FOR_EACH_SEPX_CALL_3(M, X, a1, a2, a3) M(a1) X M(a2) X M(a3)
-#define FOR_EACH_SEPX_CALL_4(M, X, a1, a2, a3, a4) M(a1) X M(a2) X M(a3) X M(a4)
-#define FOR_EACH_SEPX_CALL_5(M, X, a1, a2, a3, a4, a5)                             \
-  M(a1) X M(a2) X M(a3) X M(a4) X M(a5)
-#define FOR_EACH_SEPX_CALL_6(M,X, a1, a2, a3, a4, a5, a6)                         \
-  M(a1) X M(a2) X M(a3) X M(a4) X M(a5) X M(a6)
-#define FOR_EACH_SEPX_CALL_7(M, a1, a2, a3, a4, a5, a6, a7)                     \
-  M(a1) X M(a2) X M(a3) X M(a4) X M(a5) X M(a6) X M(a7)
-#define FOR_EACH_SEPX_CALL_8(M, a1, a2, a3, a4, a5, a6, a7, a8)                 \
-  M(a1) X M(a2) X M(a3) X M(a4) X M(a5) X M(a6) X M(a7) X M(a8)
+#define FOR_EACH_SEPX_CALL_3(M, X, a1, a2, a3)                                 \
+  M(a1) X M(a2)                                                                \
+  X M(a3)
+#define FOR_EACH_SEPX_CALL_4(M, X, a1, a2, a3, a4)                             \
+  M(a1) X M(a2)                                                                \
+  X M(a3)                                                                      \
+  X M(a4)
+#define FOR_EACH_SEPX_CALL_5(M, X, a1, a2, a3, a4, a5)                         \
+  M(a1) X M(a2)                                                                \
+  X M(a3)                                                                      \
+  X M(a4)                                                                      \
+  X M(a5)
+#define FOR_EACH_SEPX_CALL_6(M, X, a1, a2, a3, a4, a5, a6)                     \
+  M(a1) X M(a2)                                                                \
+  X M(a3)                                                                      \
+  X M(a4)                                                                      \
+  X M(a5)                                                                      \
+  X M(a6)
+#define FOR_EACH_SEPX_CALL_7(M, a1, a2, a3, a4, a5, a6, a7)                    \
+  M(a1) X M(a2)                                                                \
+  X M(a3)                                                                      \
+  X M(a4)                                                                      \
+  X M(a5)                                                                      \
+  X M(a6)                                                                      \
+  X M(a7)
+#define FOR_EACH_SEPX_CALL_8(M, a1, a2, a3, a4, a5, a6, a7, a8)                \
+  M(a1) X M(a2)                                                                \
+  X M(a3)                                                                      \
+  X M(a4)                                                                      \
+  X M(a5)                                                                      \
+  X M(a6)                                                                      \
+  X M(a7)                                                                      \
+  X M(a8)
 
-#define FOR_EACH_SEPX_CALL(M, X, ...)                                              \
+#define FOR_EACH_SEPX_CALL(M, X, ...)                                          \
   GET_FOR_EACH_SEPX_CALL(M_NARGS(__VA_ARGS__))(M, X, __VA_ARGS__)
 
 #define GET_FOR_EACH_SEPX_CALL(N) CAT(FOR_EACH_SEPX_CALL_, N)
-
 
 // count arguments - ##__VA_ARGS__ is not portable
 #define M_NARGS(...)                                                           \
@@ -424,7 +410,8 @@ public:                                                                        \
 
 // uses comma swallowing trick
 #define CALLSTUB_MEMBER(unique_name, ret, name, ...)                           \
-  ret (*_##unique_name##_stub)(void *obj COMMA_IF_ARGS(__VA_ARGS__) __VA_ARGS__);
+  ret (*_##unique_name##_stub)(void *obj COMMA_IF_ARGS(__VA_ARGS__)            \
+                                   __VA_ARGS__);
 
 #define CONCEPT_REQUIREMENT(unique_name, ret, name, ...)                       \
   template <typename, typename = void>                                         \
@@ -447,19 +434,8 @@ public:                                                                        \
 #define DEFINE_METHOD(ret, name, ...)                                          \
   (UNIQUE_NAME(name), ret, name, __VA_ARGS__)
 
-
-
-
-#define ARCHETYPE_REQUIREMENT(unique_name, ret, name, ...)\
-  static_cast<ret (T::*)(TYPED_ARGS(M_NARGS(__VA_ARGS__), __VA_ARGS__))>(&T::name)
-
-
-// DEFINE_ARCHETYPE(basic0, (
-//   DEFINE_METHOD(void, func0)
-// ))
-
-
-
-
+#define ARCHETYPE_REQUIREMENT(unique_name, ret, name, ...)                     \
+  static_cast<ret (T::*)(TYPED_ARGS(M_NARGS(__VA_ARGS__), __VA_ARGS__))>(      \
+      &T::name)
 
 #endif //__ARCHETYPE_H__

@@ -2,3 +2,4 @@ build
 result
 .ccls-cache
 compile_commands.json
+include/archetype/expanded.cpp

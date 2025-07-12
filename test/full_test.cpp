@@ -5,29 +5,19 @@
 
 // Test fixtures for basic checks
 struct noarg_func {
-  void func0() { 
-    // std::cout << "noarg_func::func0() called" << std::endl; 
-  }
+  void func0() {}
 };
 
 struct noarg_func1 {
-  void func1() { 
-    // std::cout << "noarg_func1::func1() called" << std::endl; 
-  }
+  void func1() {}
 };
 
 struct arg_func {
-  int func0(int a) {
-    // void func0() { std::cout << "arg_func::func0(int) called" << std::endl; }
-    return a + 5; 
-  }
+  int func0(int a) { return a + 5; }
 };
 
 struct arg_func_double {
-  double func0(double a) { 
-    // void func0() { std::cout << "arg_func::func0(double) called" << std::endl; }
-    return a + 5.3; 
-  }
+  double func0(double a) { return a + 5.3; }
 };
 
 struct multifunc {
@@ -41,10 +31,18 @@ struct overloaded_func {
 };
 
 // Test fixtures for finding common bases
-struct A { void do_a(void) { } };
-struct B { int do_b(int b) {return b + 5; } };
-struct C { char do_c(char c) {return c + 3; } };
-struct D { double do_d(double d) {return d + 3.4; } };
+struct A {
+  void do_a(void) {}
+};
+struct B {
+  int do_b(int b) { return b + 5; }
+};
+struct C {
+  char do_c(char c) { return c + 3; }
+};
+struct D {
+  double do_d(double d) { return d + 3.4; }
+};
 
 struct AB : public A, public B {};
 struct AC : public A, public C {};
@@ -58,35 +56,26 @@ struct ABD : public A, public B, public D {};
 struct ACD : public A, public C, public D {};
 struct BCD : public B, public C, public D {};
 
-
-
+// Archetypes for use in tests
 DEFINE_ARCHETYPE(basic_void, (DEFINE_METHOD(void, func0)))
 
 DEFINE_ARCHETYPE(basic_int, (DEFINE_METHOD(int, func0, int)))
 
 DEFINE_ARCHETYPE(basic_double, (DEFINE_METHOD(double, func0, double)))
 
-DEFINE_ARCHETYPE(basic_multifunc, ( 
-  DEFINE_METHOD(int, func0, int),
-  DEFINE_METHOD(double, func1, double)
-))
+DEFINE_ARCHETYPE(basic_multifunc, (DEFINE_METHOD(int, func0, int),
+                                   DEFINE_METHOD(double, func1, double)))
 
-DEFINE_ARCHETYPE(basic_overload, ( 
-  DEFINE_METHOD(int, func0, int),
-  DEFINE_METHOD(double, func0, double)
-))
+DEFINE_ARCHETYPE(basic_overload, (DEFINE_METHOD(int, func0, int),
+                                  DEFINE_METHOD(double, func0, double)))
 
+DEFINE_ARCHETYPE(satisfies_a, (DEFINE_METHOD(void, do_a)))
+DEFINE_ARCHETYPE(satisfies_b, (DEFINE_METHOD(int, do_b, int)))
+DEFINE_ARCHETYPE(satisfies_c, (DEFINE_METHOD(char, do_c, char)))
+DEFINE_ARCHETYPE(satisfies_d, (DEFINE_METHOD(double, do_d, double)))
 
-DEFINE_ARCHETYPE(satisfies_a, ( DEFINE_METHOD(void, do_a) ))
-DEFINE_ARCHETYPE(satisfies_b, ( DEFINE_METHOD(int, do_b, int) ))
-DEFINE_ARCHETYPE(satisfies_c, ( DEFINE_METHOD(char, do_c, char) ))
-DEFINE_ARCHETYPE(satisfies_d, ( DEFINE_METHOD(double, do_d, double) ))
-
-
-DEFINE_ARCHETYPE(satisfies_ab_manual, ( 
-  DEFINE_METHOD(void, do_a),
-  DEFINE_METHOD(int, do_b, int)
-))
+DEFINE_ARCHETYPE(satisfies_ab_manual,
+                 (DEFINE_METHOD(void, do_a), DEFINE_METHOD(int, do_b, int)))
 
 TEST_CASE("ARCHETYPE_DEFINE") {
 
@@ -176,12 +165,16 @@ TEST_CASE("ARCHETYPE_DEFINE") {
   }
 }
 
-
-// Compose them 
+// Compose them
 COMPOSE_ARCHETYPE(satisfies_ab, satisfies_a, satisfies_b)
 COMPOSE_ARCHETYPE(satisfies_ac, satisfies_a, satisfies_c)
 COMPOSE_ARCHETYPE(satisfies_ad, satisfies_a, satisfies_d)
 
+// Multilevel composition
+COMPOSE_ARCHETYPE(satisfies_abc, satisfies_ab,
+                  satisfies_c) // compose invoked twice
+COMPOSE_ARCHETYPE(satisfies_abcd, satisfies_abc,
+                  satisfies_d) // compose invoked three times
 
 TEST_CASE("ARCHETYPE_COMPOSE") {
   SUBCASE("common bases of AB") {
