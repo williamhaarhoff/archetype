@@ -1,7 +1,6 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "archetype/archetype.h"
 #include <doctest/doctest.h>
-#include <iostream>
 
 // Test fixtures for basic checks
 struct noarg_func {
