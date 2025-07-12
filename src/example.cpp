@@ -3,23 +3,23 @@
 #include <cstring>
 #include <iostream>
 
-DEFINE_ARCHETYPE(writable, (
-  DEFINE_METHOD(int, write, const char *, size_t)
+ARCHETYPE_DEFINE(writable, (
+  ARCHETYPE_METHOD(int, write, const char *, size_t)
 ))
 
-DEFINE_ARCHETYPE(readable, (
-  DEFINE_METHOD(int, read, char *, size_t)
+ARCHETYPE_DEFINE(readable, (
+  ARCHETYPE_METHOD(int, read, char *, size_t)
 ))
 
-DEFINE_ARCHETYPE(testing, (
-  DEFINE_METHOD(int, test, char *, size_t)
+ARCHETYPE_DEFINE(testing, (
+  ARCHETYPE_METHOD(int, test, char *, size_t)
 ))
 
 
 
-COMPOSE_ARCHETYPE(readwritable, readable, writable)
+ARCHETYPE_COMPOSE(readwritable, readable, writable)
 
-COMPOSE_ARCHETYPE(testreadwritable, testing, readwritable)
+ARCHETYPE_COMPOSE(testreadwritable, testing, readwritable)
 
 
 
@@ -269,6 +269,23 @@ class C{
 
 int main()
 {
+
+  if (__cplusplus == 202302L)
+    std::cout << "C++23";
+  else if (__cplusplus == 202002L)
+    std::cout << "C++20";
+  else if (__cplusplus == 201703L)
+    std::cout << "C++17";
+  else if (__cplusplus == 201402L)
+    std::cout << "C++14";
+  else if (__cplusplus == 201103L)
+    std::cout << "C++11";
+  else if (__cplusplus == 199711L)
+    std::cout << "C++98";
+  else
+    std::cout << "pre-standard C++." << __cplusplus;
+  std::cout << "\n";
+
   // finder<A>::accessible<archetype::Base> instance;
   helper<A>::get_inaccesible<helper<B>::get_inaccesible<>> ab_chain;
   archetype::helper<writable>::get<archetype::helper<readable>::get<>> wr_chain;
@@ -288,7 +305,7 @@ int main()
 
   writable::ptr<> wptr;
   wptr.bind(w);
-  wptr->write("asdfasdfasdf", 5);
+  wptr->write("asdf\n", 5);
 
   readwritable::ptr<> rwptr;
   rwptr.bind(crw);

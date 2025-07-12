@@ -4,39 +4,37 @@
 #include <type_traits>
 
 
-// Utilities
+// -- Utilities
 namespace archetype {
 
 class Base {
 public:
   virtual ~Base() {};
-
   template <typename T> void bind(T &t) { _obj = static_cast<void *>(&t); }
-
 protected:
   void *_obj;
 };
 
-// pre c++ 17
-template <typename...>
+
+template <typename...> // std::void_t - pre c++17
 using void_t = void;
 
-// components friend this helper for use in inheritance chaining
-template <class C> class helper {
+
+template <class C> class helper { // friend of component, used for inheritance chaining
 public:
   template <typename T = archetype::Base>
   using get = typename C::template component<T>;
 };
 
-template <class BASE> class identity : public BASE {};
+template <class BASE> class identity : public BASE {}; // derived is the base
 } // namespace archetype
 
 
-// API
-#define DEFINE_METHOD(ret, name, ...)                                          \
+// -- API
+#define ARCHETYPE_METHOD(ret, name, ...)                                       \
   (UNIQUE_NAME(name), ret, name, __VA_ARGS__)
 
-#define DEFINE_ARCHETYPE(NAME, METHODS)                                        \
+#define ARCHETYPE_DEFINE(NAME, METHODS)                                        \
   struct NAME {                                                                \
     NAME() = delete;                                                           \
                                                                                \
@@ -94,7 +92,7 @@ template <class BASE> class identity : public BASE {};
     };                                                                         \
   };
 
-#define COMPOSE_ARCHETYPE(NAME, ...)                                           \
+#define ARCHETYPE_COMPOSE(NAME, ...)                                           \
   struct NAME {                                                                \
     NAME() = delete;                                                           \
                                                                                \
@@ -146,7 +144,7 @@ template <class BASE> class identity : public BASE {};
   EXPAND_ARCHETYPE_METHODS_IMPL METHODS
 
 #define EXPAND_ARCHETYPE_METHODS_IMPL(...)                                     \
-  FOR_EACH(ARCHETYPE_METHOD, __VA_ARGS__)
+  FOR_EACH(ARCHETYPE_PP_METHOD, __VA_ARGS__)
 
 #define EXPAND_CALLSTUB_ASSIGNMENTS(METHODS)                                   \
   EXPAND_CALLSTUB_ASSIGNMENTS_IMPL METHODS
@@ -178,7 +176,7 @@ template <class BASE> class identity : public BASE {};
 
 
 // Low level expressions
-#define ARCHETYPE_METHOD(unique_name, ret, name, ...)                          \
+#define ARCHETYPE_PP_METHOD(unique_name, ret, name, ...)                          \
 public:                                                                        \
   ret name(TYPED_ARGS(M_NARGS(__VA_ARGS__), __VA_ARGS__)) {                    \
     return _##unique_name##_stub(_obj COMMA_IF_ARGS(__VA_ARGS__) ARG_NAMES(    \

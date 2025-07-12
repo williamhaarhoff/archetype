@@ -2,21 +2,21 @@
 #include <iostream>
 #include <vector>
 
-DEFINE_ARCHETYPE(basic_overload, (DEFINE_METHOD(int, func0, int),
-                                  DEFINE_METHOD(double, func0, double)))
+ARCHETYPE_DEFINE(basic_overload, (ARCHETYPE_METHOD(int, func0, int),
+                                  ARCHETYPE_METHOD(double, func0, double)))
 
-DEFINE_ARCHETYPE(satisfies_a, (DEFINE_METHOD(void, do_a)))
-DEFINE_ARCHETYPE(satisfies_b, (DEFINE_METHOD(int, do_b, int)))
-DEFINE_ARCHETYPE(satisfies_c, (DEFINE_METHOD(char, do_c, char)))
-DEFINE_ARCHETYPE(satisfies_d, (DEFINE_METHOD(double, do_d, double)))
+ARCHETYPE_DEFINE(satisfies_a, (ARCHETYPE_METHOD(void, do_a)))
+ARCHETYPE_DEFINE(satisfies_b, (ARCHETYPE_METHOD(int, do_b, int)))
+ARCHETYPE_DEFINE(satisfies_c, (ARCHETYPE_METHOD(char, do_c, char)))
+ARCHETYPE_DEFINE(satisfies_d, (ARCHETYPE_METHOD(double, do_d, double)))
 
-DEFINE_ARCHETYPE(satisfies_ab_manual,
-                 (DEFINE_METHOD(void, do_a), DEFINE_METHOD(int, do_b, int)))
+ARCHETYPE_DEFINE(satisfies_ab_manual,
+                 (ARCHETYPE_METHOD(void, do_a), ARCHETYPE_METHOD(int, do_b, int)))
 
-COMPOSE_ARCHETYPE(satisfies_ab, satisfies_a, satisfies_b)
-COMPOSE_ARCHETYPE(satisfies_ad, satisfies_a, satisfies_d)
+ARCHETYPE_COMPOSE(satisfies_ab, satisfies_a, satisfies_b)
+ARCHETYPE_COMPOSE(satisfies_ad, satisfies_a, satisfies_d)
 
-COMPOSE_ARCHETYPE(satisfies_abc_alt, satisfies_ab, satisfies_c)
+ARCHETYPE_COMPOSE(satisfies_abc_alt, satisfies_ab, satisfies_c)
 
 struct A {
   void do_a(void) {}

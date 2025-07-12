@@ -101,16 +101,16 @@ particular interface without requiring them to inherit from anything.
 
 ```cpp
 #include "archetype.h"
-DEFINE_ARCHETYPE(archetype_a, ( DEFINE_METHOD(void, a) ))
-DEFINE_ARCHETYPE(archetype_b, ( DEFINE_METHOD(int, b, int) ))
-DEFINE_ARCHETYPE(archetype_c, ( DEFINE_METHOD(double, c, double) ))
+ARCHETYPE_DEFINE(archetype_a, ( ARCHETYPE_METHOD(void, a) ))
+ARCHETYPE_DEFINE(archetype_b, ( ARCHETYPE_METHOD(int, b, int) ))
+ARCHETYPE_DEFINE(archetype_c, ( ARCHETYPE_METHOD(double, c, double) ))
 ```
 
 ### Compose multiple interfaces:
 
 ```cpp
-COMPOSE_ARCHETYPE(archetype_ab, archetype_a, archetype_b)
-COMPOSE_ARCHETYPE(archetype_ac, archetype_a, archetype_c)
+ARCHETYPE_COMPOSE(archetype_ab, archetype_a, archetype_b)
+ARCHETYPE_COMPOSE(archetype_ac, archetype_a, archetype_c)
 ```
 
 ### Bind any compatible object:
@@ -154,7 +154,7 @@ TODO - double check this table
 Define APIs that depend on interfaces, not on implementations.
 
 ```cpp
-DEFINE_ARCHETYPE(loggable, ( DEFINE_METHOD(void, log, const char *) ))
+ARCHETYPE_DEFINE(loggable, ( ARCHETYPE_METHOD(void, log, const char *) ))
 
 class DoTheThing 
 {
@@ -182,8 +182,8 @@ collisions with their base class. Archetype views isolate the bound object from
 the mixin, and only allow interaction through the specified interface.
 
 ```cpp
-DEFINE_ARCHETYPE(writable, ( DEFINE_METHOD(int, write, const char *, int)))
-DEFINE_ARCHETYPE(readable, ( DEFINE_METHOD(int, read, char *, int)))
+ARCHETYPE_DEFINE(writable, ( ARCHETYPE_METHOD(int, write, const char *, int)))
+ARCHETYPE_DEFINE(readable, ( ARCHETYPE_METHOD(int, read, char *, int)))
 
 template <class W> class WriteAPI : public W {
 public:
@@ -208,7 +208,7 @@ Then use archetypes to bind bindable types, to create type erased views of other
 objects.
 
 ```cpp
-COMPOSE_ARCHETYPE(readwritable, writable, readable)
+ARCHETYPE_COMPOSE(readwritable, writable, readable)
 
 class MyReadWriter { 
   public: 
