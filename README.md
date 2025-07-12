@@ -11,7 +11,7 @@
 
 ### TODO:
 
-- clang build
+<!-- - clang build -->
 - clean up macros, and choose better names
 - clean up the readme
 <!-- - replace logo -->
