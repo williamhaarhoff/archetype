@@ -29,9 +29,9 @@ stdenv.mkDerivation {
   # Distinguishing between `nativeBuildInputs` (runnable on the host
   # at compile time) and normal `buildInputs` (runnable on target
   # platform at run time) is an important preparation for cross-compilation.
-  nativeBuildInputs = [ cmake doctest];
+  nativeBuildInputs = [ cmake ];
   buildInputs = [ ];
-  checkInputs = [ ];
+  checkInputs = [ doctest ];
 
   # Instruct the build process to run tests.
   # The generic builder script of `mkDerivation` handles all the default
