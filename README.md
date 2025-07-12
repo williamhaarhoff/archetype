@@ -3,9 +3,32 @@
 [![GCC Build](https://github.com/williamhaarhoff/archetype/actions/workflows/nix.yml/badge.svg)](https://github.com/williamhaarhoff/archetype/actions/workflows/nix.yml)
 [![MSVC Build](https://github.com/williamhaarhoff/archetype/actions/workflows/windows.yml/badge.svg)](https://github.com/williamhaarhoff/archetype/actions/workflows/windows.yml)
 
-![](docs/archetype.png)
+
+
+<div style="font-size: 80px;">
+  <span style="color: #9600ff">A</span>
+  <span style="color: #a100fd">R</span>
+  <span style="color: #ac00fb">C</span>
+  <span style="color: #b600f9">H</span>
+  <span style="color: #c101f8">E</span>
+  <span style="color: #cc01f6">T</span>
+  <span style="color: #d701f4">Y</span>
+  <span style="color: #e101f2">P</span>
+  <span style="color: #ec01f0">E</span>
+</div>
+
+
 
 ## WARNING -- STILL UNDER CONSTRUCTION
+
+###TODO:
+
+- clang build
+- clean up macros, and choose better names
+- clean up the readme
+<!-- - replace logo -->
+- c99 compliant preprocessor macros
+- document msvc preprocessor flag
 
 > **Concept based type erasure for C++11 without inheritance or dynamic
 > allocation.**
