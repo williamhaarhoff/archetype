@@ -3,24 +3,23 @@
 
 #include <type_traits>
 
-
-// -- Utilities
+//-- Utilities
 namespace archetype {
 
 class Base {
 public:
   virtual ~Base() {};
   template <typename T> void bind(T &t) { _obj = static_cast<void *>(&t); }
+
 protected:
   void *_obj;
 };
 
-
 template <typename...> // std::void_t - pre c++17
 using void_t = void;
 
-
-template <class C> class helper { // friend of component, used for inheritance chaining
+template <class C>
+class helper { // friend of component, used for inheritance chaining
 public:
   template <typename T = archetype::Base>
   using get = typename C::template component<T>;
@@ -29,10 +28,9 @@ public:
 template <class BASE> class identity : public BASE {}; // derived is the base
 } // namespace archetype
 
-
-// -- API
+//-- API
 #define ARCHETYPE_METHOD(ret, name, ...)                                       \
-  (UNIQUE_NAME(name), ret, name, __VA_ARGS__)
+  (ARCH_PP_UNIQUE_NAME(name), ret, name, __VA_ARGS__)
 
 #define ARCHETYPE_DEFINE(NAME, METHODS)                                        \
   struct NAME {                                                                \
@@ -48,24 +46,24 @@ template <class BASE> class identity : public BASE {}; // derived is the base
                                                                                \
     template <typename T>                                                      \
     struct check<                                                              \
-      T, archetype::void_t<decltype(EXPAND_ARCHETYPE_REQUIREMENTS(METHODS))>>  \
-      : std::true_type {};                                                     \
+        T, archetype::void_t<decltype(ARCH_PP_EXPAND_REQUIREMENTS(METHODS))>>  \
+        : std::true_type {};                                                   \
                                                                                \
     /* Internal protected view component implementation */                     \
   protected:                                                                   \
     template <typename B = archetype::Base> class component : public B {       \
     public:                                                                    \
       template <template <typename> class Interface> friend class ptr;         \
-      EXPAND_ARCHETYPE_METHODS(METHODS)                                        \
+      ARCH_PP_EXPAND_METHODS(METHODS)                                          \
                                                                                \
     protected:                                                                 \
       template <typename T> void bind(T &t) {                                  \
         this->B::bind(t);                                                      \
-        EXPAND_CALLSTUB_ASSIGNMENTS(METHODS)                                   \
+        ARCH_PP_EXPAND_CALLSTUB_ASSIGNMENTS(METHODS)                           \
       }                                                                        \
                                                                                \
       using B::_obj;                                                           \
-      EXPAND_CALLSTUB_MEMBERS(METHODS)                                         \
+      ARCH_PP_EXPAND_CALLSTUB_MEMBERS(METHODS)                                 \
     };                                                                         \
                                                                                \
     /* Public view, exposes component interface*/                              \
@@ -102,13 +100,13 @@ template <class BASE> class identity : public BASE {}; // derived is the base
                                                                                \
     template <typename T>                                                      \
     struct check                                                               \
-        : std::integral_constant<bool,                                         \
-                                 EXPAND_COMPONENT_REQUIREMENTS(__VA_ARGS__)> { \
-    };                                                                         \
+        : std::integral_constant<bool, ARCH_PP_EXPAND_COMPONENT_REQUIREMENTS(  \
+                                           __VA_ARGS__)> {};                   \
                                                                                \
   protected:                                                                   \
     template <typename B = archetype::Base>                                    \
-    class component : public EXPAND_COMPONENT_INHERITANCE(__VA_ARGS__) {       \
+    class component                                                            \
+        : public ARCH_PP_EXPAND_COMPONENT_INHERITANCE(__VA_ARGS__) {           \
     public:                                                                    \
       template <template <typename> class Interface> friend class ptr;         \
     };                                                                         \
@@ -138,82 +136,79 @@ template <class BASE> class identity : public BASE {}; // derived is the base
     };                                                                         \
   };
 
+//-- High level internal expansions
+#define ARCH_PP_EXPAND_METHODS(METHODS) ARCH_PP_EXPAND_METHODS_IMPL METHODS
 
-// High level expansions
-#define EXPAND_ARCHETYPE_METHODS(METHODS)                                      \
-  EXPAND_ARCHETYPE_METHODS_IMPL METHODS
+#define ARCH_PP_EXPAND_METHODS_IMPL(...)                                       \
+  ARCH_PP_FOR_EACH(ARCH_PP_METHOD, __VA_ARGS__)
 
-#define EXPAND_ARCHETYPE_METHODS_IMPL(...)                                     \
-  FOR_EACH(ARCHETYPE_PP_METHOD, __VA_ARGS__)
+#define ARCH_PP_EXPAND_CALLSTUB_ASSIGNMENTS(METHODS)                           \
+  ARCH_PP_EXPAND_CALLSTUB_ASSIGNMENTS_IMPL METHODS
 
-#define EXPAND_CALLSTUB_ASSIGNMENTS(METHODS)                                   \
-  EXPAND_CALLSTUB_ASSIGNMENTS_IMPL METHODS
+#define ARCH_PP_EXPAND_CALLSTUB_ASSIGNMENTS_IMPL(...)                          \
+  ARCH_PP_FOR_EACH(ARCH_PP_CALLSTUB_ASSIGNMENT, __VA_ARGS__)
 
-#define EXPAND_CALLSTUB_ASSIGNMENTS_IMPL(...)                                  \
-  FOR_EACH(CALLSTUB_ASSIGNMENT, __VA_ARGS__)
+#define ARCH_PP_EXPAND_CALLSTUB_MEMBERS(METHODS)                               \
+  ARCH_PP_EXPAND_CALLSTUB_MEMBERS_IMPL METHODS
 
-#define EXPAND_CALLSTUB_MEMBERS(METHODS)                                       \
-  EXPAND_CALLSTUB_MEMBERS_IMPL METHODS
+#define ARCH_PP_EXPAND_CALLSTUB_MEMBERS_IMPL(...)                              \
+  ARCH_PP_FOR_EACH(ARCH_PP_CALLSTUB_MEMBER, __VA_ARGS__)
 
-#define EXPAND_CALLSTUB_MEMBERS_IMPL(...)                                      \
-  FOR_EACH(CALLSTUB_MEMBER, __VA_ARGS__)
+#define ARCH_PP_EXPAND_REQUIREMENTS(METHODS)                                   \
+  ARCH_PP_EXPAND_REQUIREMENTS_IMPL METHODS
 
-#define EXPAND_ARCHETYPE_REQUIREMENTS(METHODS)                                 \
-  EXPAND_ARCHETYPE_REQUIREMENTS_IMPL METHODS
+#define ARCH_PP_EXPAND_REQUIREMENTS_IMPL(...)                                  \
+  ARCH_PP_FOR_EACH_SEP(ARCH_PP_REQUIREMENT, __VA_ARGS__)
 
-#define EXPAND_ARCHETYPE_REQUIREMENTS_IMPL(...)                                \
-  FOR_EACH_SEP(ARCHETYPE_REQUIREMENT, __VA_ARGS__)
+#define ARCH_PP_EXPAND_COMPONENT_INHERITANCE(...)                              \
+  ARCH_PP_EXPAND_COMPONENT_INHERITANCE_IMPL(                                   \
+      ARCH_PP_FOR_EACH_SEP_CALL(ARCH_PP_APPLY_HELPER, __VA_ARGS__))
 
-#define EXPAND_COMPONENT_INHERITANCE(...)                                      \
-  EXPAND_COMPONENT_INHERITANCE_IMPL(                                           \
-      FOR_EACH_SEP_CALL(APPLY_HELPER, __VA_ARGS__))
+#define ARCH_PP_EXPAND_COMPONENT_INHERITANCE_IMPL(...)                         \
+  ARCH_PP_TEMPLATE_CHAIN(__VA_ARGS__ ARCH_PP_COMMA_IF_ARGS(__VA_ARGS__) B)
 
-#define EXPAND_COMPONENT_INHERITANCE_IMPL(...)                                 \
-  TEMPLATE_CHAIN(__VA_ARGS__ COMMA_IF_ARGS(__VA_ARGS__) B)
+#define ARCH_PP_EXPAND_COMPONENT_REQUIREMENTS(...)                             \
+  ARCH_PP_FOR_EACH_SEPX_CALL(ARCH_PP_APPEND_CHECK, &&, __VA_ARGS__)
 
-#define EXPAND_COMPONENT_REQUIREMENTS(...)                                     \
-  FOR_EACH_SEPX_CALL(APPEND_CHECK, &&, __VA_ARGS__)
-
-
-// Low level expressions
-#define ARCHETYPE_PP_METHOD(unique_name, ret, name, ...)                          \
+//-- Low level internal expressions
+#define ARCH_PP_METHOD(ARCH_PP_UNIQUE_NAME, ret, name, ...)                    \
 public:                                                                        \
   ret name(TYPED_ARGS(M_NARGS(__VA_ARGS__), __VA_ARGS__)) {                    \
-    return _##unique_name##_stub(_obj COMMA_IF_ARGS(__VA_ARGS__) ARG_NAMES(    \
-        M_NARGS(__VA_ARGS__), __VA_ARGS__));                                   \
+    return _##ARCH_PP_UNIQUE_NAME##_stub(_obj ARCH_PP_COMMA_IF_ARGS(           \
+        __VA_ARGS__) ARCH_PP_ARG_NAMES(M_NARGS(__VA_ARGS__), __VA_ARGS__));    \
   }
 
-#define CALLSTUB_ASSIGNMENT(unique_name, ret, name, ...)                       \
-  _##unique_name##_stub = [](void *obj COMMA_IF_ARGS(__VA_ARGS__) TYPED_ARGS(  \
-                              M_NARGS(__VA_ARGS__), __VA_ARGS__)) -> ret {     \
+#define ARCH_PP_CALLSTUB_ASSIGNMENT(ARCH_PP_UNIQUE_NAME, ret, name, ...)       \
+  _##ARCH_PP_UNIQUE_NAME##_stub =                                              \
+      [](void *obj ARCH_PP_COMMA_IF_ARGS(__VA_ARGS__)                          \
+             TYPED_ARGS(M_NARGS(__VA_ARGS__), __VA_ARGS__)) -> ret {           \
     return static_cast<T *>(obj)->name(                                        \
-        ARG_NAMES(M_NARGS(__VA_ARGS__), __VA_ARGS__));                         \
+        ARCH_PP_ARG_NAMES(M_NARGS(__VA_ARGS__), __VA_ARGS__));                 \
   };
 
-#define CALLSTUB_MEMBER(unique_name, ret, name, ...)                           \
-  ret (*_##unique_name##_stub)(void *obj COMMA_IF_ARGS(__VA_ARGS__)            \
-                                   __VA_ARGS__);
+#define ARCH_PP_CALLSTUB_MEMBER(ARCH_PP_UNIQUE_NAME, ret, name, ...)           \
+  ret (*_##ARCH_PP_UNIQUE_NAME##_stub)(                                        \
+      void *obj ARCH_PP_COMMA_IF_ARGS(__VA_ARGS__) __VA_ARGS__);
 
-#define UNIQUE_NAME(base) CAT(CAT(CAT(CAT(base, _), __LINE__), _), __COUNTER__)
+#define ARCH_PP_UNIQUE_NAME(base)                                              \
+  ARCH_PP_CAT(ARCH_PP_CAT(ARCH_PP_CAT(ARCH_PP_CAT(base, _), __LINE__), _),     \
+              __COUNTER__)
 
-
-#define ARCHETYPE_REQUIREMENT(unique_name, ret, name, ...)                     \
+#define ARCH_PP_REQUIREMENT(ARCH_PP_UNIQUE_NAME, ret, name, ...)               \
   static_cast<ret (T::*)(TYPED_ARGS(M_NARGS(__VA_ARGS__), __VA_ARGS__))>(      \
       &T::name)
 
-#define APPEND_CHECK(x) x::check<T>::value
-#define APPLY_HELPER(x) archetype::helper<x>::get
+#define ARCH_PP_APPEND_CHECK(x) x::check<T>::value
+#define ARCH_PP_APPLY_HELPER(x) archetype::helper<x>::get
 
+//-- Foundational macro utilities
+#define ARCH_PP_EXPAND(x) x
 
-// Macro PP utilities
-#define EXPAND(x) x
-#define EXPAND2(x) EXPAND(EXPAND(x))
+#define ARCH_PP_FOR_EACH(M, ...)                                               \
+  ARCH_PP_EXPAND(ARCH_PP_GET_MACRO(__VA_ARGS__, FE10, FE9, FE8, FE7, FE6, FE5, FE4,    \
+                           FE3, FE2, FE1)(M, __VA_ARGS__))
 
-#define FOR_EACH(M, ...)                                                       \
-  EXPAND(GET_MACRO(__VA_ARGS__, FE10, FE9, FE8, FE7, FE6, FE5, FE4, FE3, FE2,  \
-                   FE1)(M, __VA_ARGS__))
-
-#define GET_MACRO(_1, _2, _3, _4, _5, _6, _7, _8, _9, _10, NAME, ...) NAME
+#define ARCH_PP_GET_MACRO(_1, _2, _3, _4, _5, _6, _7, _8, _9, _10, NAME, ...) NAME
 
 #define FE1(M, x) M x
 #define FE2(M, x, ...) M x FE1(M, __VA_ARGS__)
@@ -237,9 +232,9 @@ public:                                                                        \
 #define FE9_2(M, T, x, ...) M(T, x) FE8_2(M, T, __VA_ARGS__)
 #define FE10_2(M, T, x, ...) M(T, x) FE9_2(M, T, __VA_ARGS__)
 
-#define FOR_EACH_SEP(M, ...)                                                   \
-  EXPAND(GET_MACRO(__VA_ARGS__, FES10, FES9, FES8, FES7, FES6, FES5, FES4,     \
-                   FES3, FES2, FES1)(M, __VA_ARGS__))
+#define ARCH_PP_FOR_EACH_SEP(M, ...)                                           \
+  ARCH_PP_EXPAND(ARCH_PP_GET_MACRO(__VA_ARGS__, FES10, FES9, FES8, FES7, FES6, FES5,   \
+                           FES4, FES3, FES2, FES1)(M, __VA_ARGS__))
 
 #define FES1(M, x) M x
 #define FES2(M, x, ...) M x, FE1(M, __VA_ARGS__)
@@ -263,69 +258,72 @@ public:                                                                        \
 #define FES9_2(M, T, x, ...) M(T, x), FE8_2(M, T, __VA_ARGS__)
 #define FES10_2(M, T, x, ...) M(T, x), FE9_2(M, T, __VA_ARGS__)
 
-#define FOR_EACH_CALL_1(M, a1) M(a1)
-#define FOR_EACH_CALL_2(M, a1, a2) M(a1) M(a2)
-#define FOR_EACH_CALL_3(M, a1, a2, a3) M(a1) M(a2) M(a3)
-#define FOR_EACH_CALL_4(M, a1, a2, a3, a4) M(a1) M(a2) M(a3) M(a4)
-#define FOR_EACH_CALL_5(M, a1, a2, a3, a4, a5) M(a1) M(a2) M(a3) M(a4) M(a5)
-#define FOR_EACH_CALL_6(M, a1, a2, a3, a4, a5, a6)                             \
+#define ARCH_PP_FOR_EACH_CALL_1(M, a1) M(a1)
+#define ARCH_PP_FOR_EACH_CALL_2(M, a1, a2) M(a1) M(a2)
+#define ARCH_PP_FOR_EACH_CALL_3(M, a1, a2, a3) M(a1) M(a2) M(a3)
+#define ARCH_PP_FOR_EACH_CALL_4(M, a1, a2, a3, a4) M(a1) M(a2) M(a3) M(a4)
+#define ARCH_PP_FOR_EACH_CALL_5(M, a1, a2, a3, a4, a5)                         \
+  M(a1) M(a2) M(a3) M(a4) M(a5)
+#define ARCH_PP_FOR_EACH_CALL_6(M, a1, a2, a3, a4, a5, a6)                     \
   M(a1) M(a2) M(a3) M(a4) M(a5) M(a6)
-#define FOR_EACH_CALL_7(M, a1, a2, a3, a4, a5, a6, a7)                         \
+#define ARCH_PP_FOR_EACH_CALL_7(M, a1, a2, a3, a4, a5, a6, a7)                 \
   M(a1) M(a2) M(a3) M(a4) M(a5) M(a6) M(a7)
-#define FOR_EACH_CALL_8(M, a1, a2, a3, a4, a5, a6, a7, a8)                     \
+#define ARCH_PP_FOR_EACH_CALL_8(M, a1, a2, a3, a4, a5, a6, a7, a8)             \
   M(a1) M(a2) M(a3) M(a4) M(a5) M(a6) M(a7) M(a8)
 
-#define FOR_EACH_CALL(M, ...)                                                  \
-  GET_FOR_EACH_CALL(M_NARGS(__VA_ARGS__))(M, __VA_ARGS__)
+#define ARCH_PP_FOR_EACH_CALL(M, ...)                                          \
+  ARCH_PP_GET_FOR_EACH_CALL(M_NARGS(__VA_ARGS__))(M, __VA_ARGS__)
 
-#define GET_FOR_EACH_CALL(N) CAT(FOR_EACH_CALL_, N)
+#define ARCH_PP_GET_FOR_EACH_CALL(N) ARCH_PP_CAT(ARCH_PP_FOR_EACH_CALL_, N)
 
-#define FOR_EACH_SEP_CALL_1(M, a1) M(a1)
-#define FOR_EACH_SEP_CALL_2(M, a1, a2) M(a1), M(a2)
-#define FOR_EACH_SEP_CALL_3(M, a1, a2, a3) M(a1), M(a2), M(a3)
-#define FOR_EACH_SEP_CALL_4(M, a1, a2, a3, a4) M(a1), M(a2), M(a3), M(a4)
-#define FOR_EACH_SEP_CALL_5(M, a1, a2, a3, a4, a5)                             \
+#define ARCH_PP_FOR_EACH_SEP_CALL_1(M, a1) M(a1)
+#define ARCH_PP_FOR_EACH_SEP_CALL_2(M, a1, a2) M(a1), M(a2)
+#define ARCH_PP_FOR_EACH_SEP_CALL_3(M, a1, a2, a3) M(a1), M(a2), M(a3)
+#define ARCH_PP_FOR_EACH_SEP_CALL_4(M, a1, a2, a3, a4)                         \
+  M(a1), M(a2), M(a3), M(a4)
+#define ARCH_PP_FOR_EACH_SEP_CALL_5(M, a1, a2, a3, a4, a5)                     \
   M(a1), M(a2), M(a3), M(a4), M(a5)
-#define FOR_EACH_SEP_CALL_6(M, a1, a2, a3, a4, a5, a6)                         \
+#define ARCH_PP_FOR_EACH_SEP_CALL_6(M, a1, a2, a3, a4, a5, a6)                 \
   M(a1), M(a2), M(a3), M(a4), M(a5), M(a6)
-#define FOR_EACH_SEP_CALL_7(M, a1, a2, a3, a4, a5, a6, a7)                     \
+#define ARCH_PP_FOR_EACH_SEP_CALL_7(M, a1, a2, a3, a4, a5, a6, a7)             \
   M(a1), M(a2), M(a3), M(a4), M(a5), M(a6), M(a7)
-#define FOR_EACH_SEP_CALL_8(M, a1, a2, a3, a4, a5, a6, a7, a8)                 \
+#define ARCH_PP_FOR_EACH_SEP_CALL_8(M, a1, a2, a3, a4, a5, a6, a7, a8)         \
   M(a1), M(a2), M(a3), M(a4), M(a5), M(a6), M(a7), M(a8)
 
-#define FOR_EACH_SEP_CALL(M, ...)                                              \
-  GET_FOR_EACH_SEP_CALL(M_NARGS(__VA_ARGS__))(M, __VA_ARGS__)
+#define ARCH_PP_FOR_EACH_SEP_CALL(M, ...)                                      \
+  ARCH_PP_GET_FOR_EACH_SEP_CALL(M_NARGS(__VA_ARGS__))(M, __VA_ARGS__)
 
-#define GET_FOR_EACH_SEP_CALL(N) CAT(FOR_EACH_SEP_CALL_, N)
+#define ARCH_PP_GET_FOR_EACH_SEP_CALL(N)                                       \
+  ARCH_PP_CAT(ARCH_PP_FOR_EACH_SEP_CALL_, N)
 
-#define FOR_EACH_SEPX_CALL_1(M, X, a1) M(a1)
-#define FOR_EACH_SEPX_CALL_2(M, X, a1, a2) M(a1) X M(a2)
-#define FOR_EACH_SEPX_CALL_3(M, X, a1, a2, a3)                                 \
+#define ARCH_PP_FOR_EACH_SEPX_CALL_1(M, X, a1) M(a1)
+#define ARCH_PP_FOR_EACH_SEPX_CALL_2(M, X, a1, a2) M(a1) X M(a2)
+#define ARCH_PP_FOR_EACH_SEPX_CALL_3(M, X, a1, a2, a3)                         \
   M(a1) X M(a2)                                                                \
   X M(a3)
-#define FOR_EACH_SEPX_CALL_4(M, X, a1, a2, a3, a4)                             \
+#define ARCH_PP_FOR_EACH_SEPX_CALL_4(M, X, a1, a2, a3, a4)                     \
   M(a1) X M(a2)                                                                \
   X M(a3)                                                                      \
   X M(a4)
-#define FOR_EACH_SEPX_CALL_5(M, X, a1, a2, a3, a4, a5)                         \
+#define ARCH_PP_FOR_EACH_SEPX_CALL_5(M, X, a1, a2, a3, a4, a5)                 \
   M(a1) X M(a2)                                                                \
   X M(a3)                                                                      \
   X M(a4)                                                                      \
   X M(a5)
-#define FOR_EACH_SEPX_CALL_6(M, X, a1, a2, a3, a4, a5, a6)                     \
+#define ARCH_PP_FOR_EACH_SEPX_CALL_6(M, X, a1, a2, a3, a4, a5, a6)             \
   M(a1) X M(a2)                                                                \
   X M(a3)                                                                      \
   X M(a4)                                                                      \
   X M(a5)                                                                      \
   X M(a6)
-#define FOR_EACH_SEPX_CALL_7(M, a1, a2, a3, a4, a5, a6, a7)                    \
+#define ARCH_PP_FOR_EACH_SEPX_CALL_7(M, a1, a2, a3, a4, a5, a6, a7)            \
   M(a1) X M(a2)                                                                \
   X M(a3)                                                                      \
   X M(a4)                                                                      \
   X M(a5)                                                                      \
   X M(a6)                                                                      \
   X M(a7)
-#define FOR_EACH_SEPX_CALL_8(M, a1, a2, a3, a4, a5, a6, a7, a8)                \
+#define ARCH_PP_FOR_EACH_SEPX_CALL_8(M, a1, a2, a3, a4, a5, a6, a7, a8)        \
   M(a1) X M(a2)                                                                \
   X M(a3)                                                                      \
   X M(a4)                                                                      \
@@ -334,10 +332,11 @@ public:                                                                        \
   X M(a7)                                                                      \
   X M(a8)
 
-#define FOR_EACH_SEPX_CALL(M, X, ...)                                          \
-  GET_FOR_EACH_SEPX_CALL(M_NARGS(__VA_ARGS__))(M, X, __VA_ARGS__)
+#define ARCH_PP_FOR_EACH_SEPX_CALL(M, X, ...)                                  \
+  ARCH_PP_GET_FOR_EACH_SEPX_CALL(M_NARGS(__VA_ARGS__))(M, X, __VA_ARGS__)
 
-#define GET_FOR_EACH_SEPX_CALL(N) CAT(FOR_EACH_SEPX_CALL_, N)
+#define ARCH_PP_GET_FOR_EACH_SEPX_CALL(N)                                      \
+  ARCH_PP_CAT(ARCH_PP_FOR_EACH_SEPX_CALL_, N)
 
 // count arguments - ##__VA_ARGS__ is not portable
 #define M_NARGS(...)                                                           \
@@ -348,12 +347,14 @@ public:                                                                        \
 #define HAS_ARGS(...)                                                          \
   HAS_ARGS_IMPL(dummy, ##__VA_ARGS__, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0)
 #define HAS_ARGS_IMPL(_1, _2, _3, _4, _5, _6, _7, _8, _9, _10, N, ...) N
-#define COMMA_IF_ARGS(...) COMMA_IF_ARGS_IMPL(HAS_ARGS(__VA_ARGS__))
-#define COMMA_IF_ARGS_IMPL(has_args) M_CONC(COMMA_IF_ARGS_, has_args)
-#define COMMA_IF_ARGS_1 ,
-#define COMMA_IF_ARGS_0
+#define ARCH_PP_COMMA_IF_ARGS(...)                                             \
+  ARCH_PP_COMMA_IF_ARGS_IMPL(HAS_ARGS(__VA_ARGS__))
+#define ARCH_PP_COMMA_IF_ARGS_IMPL(has_args)                                   \
+  M_CONC(ARCH_PP_COMMA_IF_ARGS_, has_args)
+#define ARCH_PP_COMMA_IF_ARGS_1 ,
+#define ARCH_PP_COMMA_IF_ARGS_0
 
-// utility (concatenation)
+// utility (conARCH_PP_CATenation)
 #define M_CONC(A, B) M_CONC_(A, B)
 #define M_CONC_(A, B) A##B
 
@@ -374,8 +375,8 @@ public:                                                                        \
 #define M_GET_LAST(...)                                                        \
   M_GET_ELEM(M_NARGS(__VA_ARGS__), _, __VA_ARGS__, , , , , , , , , , , )
 
-#define CAT(a, b) CAT_IMPL(a, b)
-#define CAT_IMPL(a, b) a##b
+#define ARCH_PP_CAT(a, b) ARCH_PP_CAT_IMPL(a, b)
+#define ARCH_PP_CAT_IMPL(a, b) a##b
 
 #define STRINGIFY(x) STRINGIFY_IMPL(x)
 #define STRINGIFY_IMPL(x) #x
@@ -392,32 +393,34 @@ public:                                                                        \
 #define TYPED_ARG_4(t0, t1, t2, t3) t0 arg0, t1 arg1, t2 arg2, t3 arg3
 // Extend as needed...
 
-#define TYPED_ARGS(count, ...) CAT(TYPED_ARG_, count)(__VA_ARGS__)
+#define TYPED_ARGS(count, ...) ARCH_PP_CAT(TYPED_ARG_, count)(__VA_ARGS__)
 
-#define ARG_NAMES_0()
-#define ARG_NAMES_1(t0) arg0
-#define ARG_NAMES_2(t0, t1) arg0, arg1
-#define ARG_NAMES_3(t0, t1, t2) arg0, arg1, arg2
-#define ARG_NAMES_4(t0, t1, t2, t3) arg0, arg1, arg2, arg3
+#define ARCH_PP_ARG_NAMES_0()
+#define ARCH_PP_ARG_NAMES_1(t0) arg0
+#define ARCH_PP_ARG_NAMES_2(t0, t1) arg0, arg1
+#define ARCH_PP_ARG_NAMES_3(t0, t1, t2) arg0, arg1, arg2
+#define ARCH_PP_ARG_NAMES_4(t0, t1, t2, t3) arg0, arg1, arg2, arg3
 
-#define TEMPLATE_CHAIN(...)                                                    \
-  TEMPLATE_CHAIN_DISPATCH(M_NARGS(__VA_ARGS__), __VA_ARGS__)
-#define TEMPLATE_CHAIN_DISPATCH(N, ...) CAT(TEMPLATE_CHAIN_, N)(__VA_ARGS__)
-#define TEMPLATE_CHAIN_1(t0) t0
-#define TEMPLATE_CHAIN_2(t0, t1) t0<t1>
-#define TEMPLATE_CHAIN_3(t0, t1, t2) t0<t1<t2>>
-#define TEMPLATE_CHAIN_4(t0, t1, t2, t3) t0<t1<t2<t3>>>
-#define TEMPLATE_CHAIN_5(t0, t1, t2, t3, t4) t0<t1<t2<t3<t4>>>>
-#define TEMPLATE_CHAIN_6(t0, t1, t2, t3, t4, t5) t0<t1<t2<t3<t4<t5>>>>>
-#define TEMPLATE_CHAIN_7(t0, t1, t2, t3, t4, t5, t6) t0<t1<t2<t3<t4<t5<t6>>>>>>
-#define TEMPLATE_CHAIN_8(t0, t1, t2, t3, t4, t5, t6, t7)                       \
+#define ARCH_PP_TEMPLATE_CHAIN(...)                                            \
+  ARCH_PP_TEMPLATE_CHAIN_DISPATCH(M_NARGS(__VA_ARGS__), __VA_ARGS__)
+#define ARCH_PP_TEMPLATE_CHAIN_DISPATCH(N, ...)                                \
+  ARCH_PP_CAT(ARCH_PP_TEMPLATE_CHAIN_, N)(__VA_ARGS__)
+#define ARCH_PP_TEMPLATE_CHAIN_1(t0) t0
+#define ARCH_PP_TEMPLATE_CHAIN_2(t0, t1) t0<t1>
+#define ARCH_PP_TEMPLATE_CHAIN_3(t0, t1, t2) t0<t1<t2>>
+#define ARCH_PP_TEMPLATE_CHAIN_4(t0, t1, t2, t3) t0<t1<t2<t3>>>
+#define ARCH_PP_TEMPLATE_CHAIN_5(t0, t1, t2, t3, t4) t0<t1<t2<t3<t4>>>>
+#define ARCH_PP_TEMPLATE_CHAIN_6(t0, t1, t2, t3, t4, t5) t0<t1<t2<t3<t4<t5>>>>>
+#define ARCH_PP_TEMPLATE_CHAIN_7(t0, t1, t2, t3, t4, t5, t6)                   \
+  t0<t1<t2<t3<t4<t5<t6>>>>>>
+#define ARCH_PP_TEMPLATE_CHAIN_8(t0, t1, t2, t3, t4, t5, t6, t7)               \
   t0<t1<t2<t3<t4<t5<t6<t7>>>>>>>
-#define TEMPLATE_CHAIN_9(t0, t1, t2, t3, t4, t5, t6, t7, t8)                   \
+#define ARCH_PP_TEMPLATE_CHAIN_9(t0, t1, t2, t3, t4, t5, t6, t7, t8)           \
   t0<t1<t2<t3<t4<t5<t6<t7<t8>>>>>>>>
-#define TEMPLATE_CHAIN_10(t0, t1, t2, t3, t4, t5, t6, t7, t8, t9)              \
+#define ARCH_PP_TEMPLATE_CHAIN_10(t0, t1, t2, t3, t4, t5, t6, t7, t8, t9)      \
   t0<t1<t2<t3<t4<t5<t6<t7<t8<t9>>>>>>>>>
 
-
-#define ARG_NAMES(count, ...) CAT(ARG_NAMES_, count)(__VA_ARGS__)
+#define ARCH_PP_ARG_NAMES(count, ...)                                          \
+  ARCH_PP_CAT(ARCH_PP_ARG_NAMES_, count)(__VA_ARGS__)
 
 #endif //__ARCHETYPE_H__
