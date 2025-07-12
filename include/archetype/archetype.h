@@ -14,6 +14,10 @@ protected:
   void *_obj;
 };
 
+// pre c++ 17
+template <typename...>
+using void_t = void;
+
 // components friend this helper for use in inheritance chaining
 template <class C> class helper {
 public:
@@ -38,8 +42,8 @@ template <class BASE> class identity : public BASE {};
                                                                                \
     template <typename T>                                                      \
     struct check<                                                              \
-        T, std::void_t<decltype(EXPAND_ARCHETYPE_REQUIREMENTS(METHODS))>>      \
-        : std::true_type {};                                                   \
+      T, archetype::void_t<decltype(EXPAND_ARCHETYPE_REQUIREMENTS(METHODS))>>  \
+      : std::true_type {};                                                     \
                                                                                \
     /* Internal protected view component implementation */                     \
   protected:                                                                   \
@@ -418,7 +422,7 @@ public:                                                                        \
   struct CAT(has_, unique_name) : std::false_type {};                          \
   template <typename T>                                                        \
   struct CAT(has_, unique_name)<                                               \
-      T, std::void_t<decltype(static_cast<ret (T::*)(TYPED_ARGS(               \
+      T, archetype::void_t<decltype(static_cast<ret (T::*)(TYPED_ARGS(         \
                                   M_NARGS(__VA_ARGS__), __VA_ARGS__))>(        \
              &T::name))>> : std::true_type {};
 
