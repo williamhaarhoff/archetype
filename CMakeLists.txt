@@ -11,13 +11,11 @@ include_directories(
   include
   src
 )
-add_executable(archetype src/example.cpp)
 
-if (MSVC)
-  target_compile_options(
-   archetype 
-    PRIVATE /Zc:preprocessor
-  )
+if (NOT WIN32)
+  message(STATUS "Building the example!")
+  add_executable(archetype src/example.cpp)
+  install(TARGETS archetype DESTINATION bin)
 endif()
 
 
@@ -28,4 +26,4 @@ if(TESTING)
   add_subdirectory(test)
 endif()
 
-install(TARGETS archetype DESTINATION bin)
+
