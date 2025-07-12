@@ -27,10 +27,12 @@
         packages.test = pkgs.callPackage ./package.nix { enableTests=true; };
         packages.no-test = pkgs.callPackage ./package.nix { enableTests=false; };
         packages.default = pkgs.callPackage ./package.nix { };
+        packages.clang = pkgs.callPackage ./package.nix { stdenv = pkgs.clangStdenv; };
 
         # The `config` variable contains our own outputs, so we can reference
         # neighbor attributes like the package we just defined one line earlier.
         devShells.default = config.packages.default;
+        devShells.clang = config.packages.clang;
 
         checks = {
           test = config.packages.test;
