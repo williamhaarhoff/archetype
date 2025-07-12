@@ -7,7 +7,7 @@ on:
     branches: [ main ]
 
 jobs:
-  build-windows:
+  build-msvc:
     runs-on: windows-latest
 
     steps:
