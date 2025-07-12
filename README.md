@@ -1,6 +1,9 @@
-![](docs/archetype.png)
-
 # Archetype
+
+[![GCC Build](https://github.com/williamhaarhoff/archetype/actions/workflows/nix.yml/badge.svg)](https://github.com/williamhaarhoff/archetype/actions/workflows/nix.yml)
+[![MSVC Build](https://github.com/williamhaarhoff/archetype/actions/workflows/windows.yml/badge.svg)](https://github.com/williamhaarhoff/archetype/actions/workflows/windows.yml)
+
+![](docs/archetype.png)
 
 ## WARNING -- STILL UNDER CONSTRUCTION
 
@@ -27,7 +30,7 @@ building portable, flexible libraries.
 - GCC, Clang, MSVC compatible
 - SFINAE based concept checking
 - Works with existing types (no base class required)
-- Composable interfaces (build *views* from parts)
+- Composable interfaces (build _views_ from parts)
 - Great for embedded, plugin, and systems-level code
 
 ## Why Archetype?
@@ -71,9 +74,10 @@ With inheritance you:
 - Lose composability
 - Struggle to find a common base
 - Risk coupling, and rigid hierarchies
-- Risk diamond problems (in multiple inheritance) 
+- Risk diamond problems (in multiple inheritance)
 
 With composition:
+
 - You can't refer to composites polymorphically
 - There's no base interface, unless you add one manually
 
@@ -157,11 +161,14 @@ class DoTheThing
 ```
 
 Now `DoTheThing` doesn't need to be templated, or depend on a base class, or
-invoke dynamic memory allocation, and can work with any *logger*
+invoke dynamic memory allocation, and can work with any _logger_
 
 ### 2. Composable Stateless Mixin Views
 
-Mixins allow modular, composable extension of classes by deriving from them. Their biggest disadvantage is  naming conflicts, and unexpected behaviour due to collisions with their base class. Archetype views isolate the bound object from the mixin, and only allow interaction through the specified interface.
+Mixins allow modular, composable extension of classes by deriving from them.
+Their biggest disadvantage is naming conflicts, and unexpected behaviour due to
+collisions with their base class. Archetype views isolate the bound object from
+the mixin, and only allow interaction through the specified interface.
 
 ```cpp
 DEFINE_ARCHETYPE(writable, ( DEFINE_METHOD(int, write, const char *, int)))
@@ -206,7 +213,8 @@ char buf[4096];
 my_view.read_api(buf, sizeof(buf));
 ```
 
-Or sateless mixins can also be reused directly without instantiating an archetype view.
+Or sateless mixins can also be reused directly without instantiating an
+archetype view.
 
 ```cpp
 writable::assert(my_read_writer);
@@ -215,7 +223,8 @@ WriteView * write_view = static_cast<WriteView*>(&my_read_writer);
 write_view.write("no view objects were instantiated");
 ```
 
-*Caveat*: In doing this, the mixins must not have virtuals, member variables, or conflict with the base. 
+_Caveat_: In doing this, the mixins must not have virtuals, member variables, or
+conflict with the base.
 
 ### 3. Stateful Mixin Views
 
