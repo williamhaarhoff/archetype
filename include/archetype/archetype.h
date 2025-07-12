@@ -3,7 +3,10 @@
 
 #include <type_traits>
 
+
+// Utilities
 namespace archetype {
+
 class Base {
 public:
   virtual ~Base() {};
@@ -27,6 +30,11 @@ public:
 
 template <class BASE> class identity : public BASE {};
 } // namespace archetype
+
+
+// API
+#define DEFINE_METHOD(ret, name, ...)                                          \
+  (UNIQUE_NAME(name), ret, name, __VA_ARGS__)
 
 #define DEFINE_ARCHETYPE(NAME, METHODS)                                        \
   struct NAME {                                                                \
@@ -132,7 +140,10 @@ template <class BASE> class identity : public BASE {};
     };                                                                         \
   };
 
-#define EXPAND_ARCHETYPE_METHODS(METHODS) EXPAND_ARCHETYPE_METHODS_IMPL METHODS
+
+// High level expansions
+#define EXPAND_ARCHETYPE_METHODS(METHODS)                                      \
+  EXPAND_ARCHETYPE_METHODS_IMPL METHODS
 
 #define EXPAND_ARCHETYPE_METHODS_IMPL(...)                                     \
   FOR_EACH(ARCHETYPE_METHOD, __VA_ARGS__)
@@ -143,15 +154,11 @@ template <class BASE> class identity : public BASE {};
 #define EXPAND_CALLSTUB_ASSIGNMENTS_IMPL(...)                                  \
   FOR_EACH(CALLSTUB_ASSIGNMENT, __VA_ARGS__)
 
-#define EXPAND_CALLSTUB_MEMBERS(METHODS) EXPAND_CALLSTUB_MEMBERS_IMPL METHODS
+#define EXPAND_CALLSTUB_MEMBERS(METHODS)                                       \
+  EXPAND_CALLSTUB_MEMBERS_IMPL METHODS
 
-#define EXPAND_CALLSTUB_MEMBERS_IMPL(...) FOR_EACH(CALLSTUB_MEMBER, __VA_ARGS__)
-
-#define EXPAND_CONCEPT_REQUIREMENTS(METHODS)                                   \
-  EXPAND_CONCEPT_REQUIREMENTS_IMPL METHODS
-
-#define EXPAND_CONCEPT_REQUIREMENTS_IMPL(...)                                  \
-  FOR_EACH(CONCEPT_REQUIREMENT, __VA_ARGS__)
+#define EXPAND_CALLSTUB_MEMBERS_IMPL(...)                                      \
+  FOR_EACH(CALLSTUB_MEMBER, __VA_ARGS__)
 
 #define EXPAND_ARCHETYPE_REQUIREMENTS(METHODS)                                 \
   EXPAND_ARCHETYPE_REQUIREMENTS_IMPL METHODS
@@ -159,30 +166,48 @@ template <class BASE> class identity : public BASE {};
 #define EXPAND_ARCHETYPE_REQUIREMENTS_IMPL(...)                                \
   FOR_EACH_SEP(ARCHETYPE_REQUIREMENT, __VA_ARGS__)
 
-#define EXPAND_CONCEPT_ASSERTIONS(METHODS)                                     \
-  EXPAND_CONCEPT_ASSERTIONS_IMPL METHODS
-
-#define EXPAND_CONCEPT_ASSERTIONS_IMPL(...)                                    \
-  FOR_EACH(CONCEPT_ASSERTION, __VA_ARGS__)
-
-#define EXPAND_COMPONENT_ASSERTIONS(...) FOR_EACH_CALL(DO_ASSERT, __VA_ARGS__)
-
-#define APPEND_BASE(x) x::component
-
-#define APPEND_CHECK(x) x::check<T>::value
-
-#define APPLY_HELPER(x) archetype::helper<x>::get
-
-#define EXPAND_COMPONENT_INHERITANCE_IMPL(...)                                 \
-  TEMPLATE_CHAIN(__VA_ARGS__ COMMA_IF_ARGS(__VA_ARGS__) B)
-
 #define EXPAND_COMPONENT_INHERITANCE(...)                                      \
   EXPAND_COMPONENT_INHERITANCE_IMPL(                                           \
       FOR_EACH_SEP_CALL(APPLY_HELPER, __VA_ARGS__))
 
+#define EXPAND_COMPONENT_INHERITANCE_IMPL(...)                                 \
+  TEMPLATE_CHAIN(__VA_ARGS__ COMMA_IF_ARGS(__VA_ARGS__) B)
+
 #define EXPAND_COMPONENT_REQUIREMENTS(...)                                     \
   FOR_EACH_SEPX_CALL(APPEND_CHECK, &&, __VA_ARGS__)
 
+
+// Low level expressions
+#define ARCHETYPE_METHOD(unique_name, ret, name, ...)                          \
+public:                                                                        \
+  ret name(TYPED_ARGS(M_NARGS(__VA_ARGS__), __VA_ARGS__)) {                    \
+    return _##unique_name##_stub(_obj COMMA_IF_ARGS(__VA_ARGS__) ARG_NAMES(    \
+        M_NARGS(__VA_ARGS__), __VA_ARGS__));                                   \
+  }
+
+#define CALLSTUB_ASSIGNMENT(unique_name, ret, name, ...)                       \
+  _##unique_name##_stub = [](void *obj COMMA_IF_ARGS(__VA_ARGS__) TYPED_ARGS(  \
+                              M_NARGS(__VA_ARGS__), __VA_ARGS__)) -> ret {     \
+    return static_cast<T *>(obj)->name(                                        \
+        ARG_NAMES(M_NARGS(__VA_ARGS__), __VA_ARGS__));                         \
+  };
+
+#define CALLSTUB_MEMBER(unique_name, ret, name, ...)                           \
+  ret (*_##unique_name##_stub)(void *obj COMMA_IF_ARGS(__VA_ARGS__)            \
+                                   __VA_ARGS__);
+
+#define UNIQUE_NAME(base) CAT(CAT(CAT(CAT(base, _), __LINE__), _), __COUNTER__)
+
+
+#define ARCHETYPE_REQUIREMENT(unique_name, ret, name, ...)                     \
+  static_cast<ret (T::*)(TYPED_ARGS(M_NARGS(__VA_ARGS__), __VA_ARGS__))>(      \
+      &T::name)
+
+#define APPEND_CHECK(x) x::check<T>::value
+#define APPLY_HELPER(x) archetype::helper<x>::get
+
+
+// Macro PP utilities
 #define EXPAND(x) x
 #define EXPAND2(x) EXPAND(EXPAND(x))
 
@@ -394,52 +419,7 @@ template <class BASE> class identity : public BASE {};
 #define TEMPLATE_CHAIN_10(t0, t1, t2, t3, t4, t5, t6, t7, t8, t9)              \
   t0<t1<t2<t3<t4<t5<t6<t7<t8<t9>>>>>>>>>
 
-// Extend as needed...
 
 #define ARG_NAMES(count, ...) CAT(ARG_NAMES_, count)(__VA_ARGS__)
-
-#define ARCHETYPE_METHOD(unique_name, ret, name, ...)                          \
-public:                                                                        \
-  ret name(TYPED_ARGS(M_NARGS(__VA_ARGS__), __VA_ARGS__)) {                    \
-    return _##unique_name##_stub(_obj COMMA_IF_ARGS(__VA_ARGS__) ARG_NAMES(    \
-        M_NARGS(__VA_ARGS__), __VA_ARGS__));                                   \
-  }
-
-#define CALLSTUB_ASSIGNMENT(unique_name, ret, name, ...)                       \
-  _##unique_name##_stub = [](void *obj COMMA_IF_ARGS(__VA_ARGS__) TYPED_ARGS(  \
-                              M_NARGS(__VA_ARGS__), __VA_ARGS__)) -> ret {     \
-    return static_cast<T *>(obj)->name(                                        \
-        ARG_NAMES(M_NARGS(__VA_ARGS__), __VA_ARGS__));                         \
-  };
-
-// uses comma swallowing trick
-#define CALLSTUB_MEMBER(unique_name, ret, name, ...)                           \
-  ret (*_##unique_name##_stub)(void *obj COMMA_IF_ARGS(__VA_ARGS__)            \
-                                   __VA_ARGS__);
-
-#define CONCEPT_REQUIREMENT(unique_name, ret, name, ...)                       \
-  template <typename, typename = void>                                         \
-  struct CAT(has_, unique_name) : std::false_type {};                          \
-  template <typename T>                                                        \
-  struct CAT(has_, unique_name)<                                               \
-      T, archetype::void_t<decltype(static_cast<ret (T::*)(TYPED_ARGS(         \
-                                  M_NARGS(__VA_ARGS__), __VA_ARGS__))>(        \
-             &T::name))>> : std::true_type {};
-
-#define CONCEPT_ASSERTION(unique_name, ret, name, ...)                         \
-  static_assert(                                                               \
-      has_##unique_name<T>::value,                                             \
-      STRINGIFY(T must have a method FUNC_SIGNATURE(ret, name, __VA_ARGS__)));
-
-#define DO_ASSERT(x) x::assert<T>();
-
-#define UNIQUE_NAME(base) CAT(CAT(CAT(CAT(base, _), __LINE__), _), __COUNTER__)
-
-#define DEFINE_METHOD(ret, name, ...)                                          \
-  (UNIQUE_NAME(name), ret, name, __VA_ARGS__)
-
-#define ARCHETYPE_REQUIREMENT(unique_name, ret, name, ...)                     \
-  static_cast<ret (T::*)(TYPED_ARGS(M_NARGS(__VA_ARGS__), __VA_ARGS__))>(      \
-      &T::name)
 
 #endif //__ARCHETYPE_H__
