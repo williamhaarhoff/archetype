@@ -11,8 +11,15 @@ include_directories(
   include
   src
 )
-
 add_executable(archetype src/example.cpp)
+
+if (MSVC)
+  target_compile_options(
+   archetype 
+    PRIVATE /Zc:preprocessor
+  )
+endif()
+
 
 option(TESTING "Enable tests." ON)
 

@@ -16,11 +16,20 @@ target_compile_features(
   PRIVATE cxx_std_11
 )
 
+if (MSVC)
+  target_compile_options(
+    archetype-macro-test 
+    PRIVATE /Zc:preprocessor
+  )
+endif()
+
 # run tests on default build
 add_custom_target(
   run-macro-tests ALL
   COMMAND archetype-macro-test 
 )
+
+
 
 
 # only running full tests on linux and macos
