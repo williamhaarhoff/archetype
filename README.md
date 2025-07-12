@@ -1,6 +1,7 @@
 # Archetype
 
-[![GCC Build](https://github.com/williamhaarhoff/archetype/actions/workflows/nix.yml/badge.svg)](https://github.com/williamhaarhoff/archetype/actions/workflows/nix.yml)
+[![GCC Build](https://github.com/williamhaarhoff/archetype/actions/workflows/ubuntu.yml/badge.svg)](https://github.com/williamhaarhoff/archetype/actions/workflows/ubuntu.yml)
+[![Clang Build](https://github.com/williamhaarhoff/archetype/actions/workflows/macos.yml/badge.svg)](https://github.com/williamhaarhoff/archetype/actions/workflows/macos.yml)
 [![MSVC Build](https://github.com/williamhaarhoff/archetype/actions/workflows/windows.yml/badge.svg)](https://github.com/williamhaarhoff/archetype/actions/workflows/windows.yml)
 
 ![](docs/archetype.png)
