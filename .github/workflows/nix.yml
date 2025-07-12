@@ -1,4 +1,4 @@
-name: "Nix Build"
+name: "GCC"
 on:
   pull_request:
   push:
