@@ -7,24 +7,13 @@
 ![](docs/archetype.png)
 
 
-## WARNING -- STILL UNDER CONSTRUCTION
-
-### TODO:
-
-<!-- - clang build -->
-- clean up macros, and choose better names
-- clean up the readme
-<!-- - replace logo -->
-- c99 compliant preprocessor macros
-- document msvc preprocessor flag
-
 > **Concept based type erasure for C++11 without inheritance or dynamic
 > allocation.**
 
 **Archetype** is a lightweight header only library for creating **type erased**,
 **concept driven interfaces** without traditional inheritance, or dynamic
 memory. It enables **modular**, **reusable** and **low coupling** APIs by
-letting you bind objects to **archetypes** which are compile time verified
+letting you bind objects to **archetype** _views_ which are compile time verified
 interface specifications.
 
 This makes **Archetype** a practical alternative to **inheritance**,
@@ -36,17 +25,20 @@ building portable, flexible libraries.
 - Single file, header only library
 - Zero dependencies
 - No dynamic memory allocation
-- Static dispatch (no virtuals)
+- No virtuals
 - C++11 Compatible
-- GCC, Clang, MSVC compatible
+- GCC 4.8.1+, Clang 3.3+, MSVC 16.5+(/Zc:preprocessor) compatible
 - SFINAE based concept checking
 - Works with existing types (no base class required)
 - Composable interfaces (build _views_ from parts)
 - Great for embedded, plugin, and systems-level code
 
-## Why Archetype?
 
-Inheritance is often overused when **composition** or **concepts** would have
+## Why Archetype?
+Archetype provides a simple, clean, and extremely flexible way to define type erased interfaces, giving you a common way to interact with polymorphic types. 
+
+
+Inheritance is often misused when **composition** or **concepts** would have
 been more appropriate. However, alternatives to inheritance often mean losing
 the ability to use clean, type erased interfaces.
 
@@ -56,15 +48,16 @@ Archetype fills this gap:
 - Like composition, it avoids rigid hierarchies
 - Like concepts, it expresses **interface intent** clearly
 - Like std::function it allows **type erased binding**
-- But unlike any of these **TODO**
+- But unlike any of them it provides type erased, static dispatch, without dynamic memory allocation, and with composable interfaces at the same time 
+
 
 ## The Inheritance Problem
 
-Inheritance gives you base pointers and dynamic dispatch, but at a cost:
+Inheritance gives you base pointers and dynamic dispatch but at a cost. 
 
 ### Example
 
-Suppose you want to reuse parts of `A`, `B`, `C`.
+Suppose you want to reuse parts of classes `A`, `B`, and `C`.
 
 ```cpp
 class A { void a(); };
@@ -75,24 +68,26 @@ class AB : public A, public B {};
 class AC : public A, public C {};
 class BC : public B, public C {};
 ```
+We can refer `AB` and `AC` with an `A` base pointer (common interface). 
+Or `AC` and `BC` with a `C`base pointer. 
 
-We can refer `AB` and `AC` with an `A` base pointer. Or `AC` and `BC` with a `C`
-base pointer. But if we want to refer to any object that implements both `A` and
-`C` like `ABC` or `ACD`?
+But if we want to refer to any object that implements both `A` and
+`C` like `ABC` or `ACD`.
 
 With inheritance you:
-
 - Lose composability
 - Struggle to find a common base
 - Risk coupling, and rigid hierarchies
 - Risk diamond problems (in multiple inheritance)
 
 With composition:
-
 - You can't refer to composites polymorphically
 - There's no base interface, unless you add one manually
 
-## Archetypes
+With other techiques like **CRTP** or **concepts** we still loose the ability to refer
+to different types polymorphically ie: we can't create `std::vector<common_interface>`
+
+## Archetypes/Quickstart
 
 **Archetype** gives you **type erased** views over objects that _implement_ a
 particular interface without requiring them to inherit from anything.
@@ -122,13 +117,25 @@ ABD abd;
 archetype_ab::view abc_view, abd_view;
 abc_view.bind(abc);
 abd_view.bind(abd);
+```
 
+### Use the interface:
+```cpp
 abc_view.a();
 abd_view.b(5);
 ```
 
+### Alternativley use a pointer style view:
+```cpp
+archetype_ab::view_ptr<> abc_view_ptr;
+abc_view_ptr.bind(abc);
+abc_view_ptr->a();
+abc_view_ptr->b(5);
+```
+
 You now have a **type erased**, **composable**, **low overhead** reference to
-any object that implements* the interface regardless of its type or hierarchy.
+any object that implements* the interface regardless of its type or hierarchy. 
+In this case we created views that can view the common `AB` parts of `ABC` and `ABD`
 
 ## How Archetype Compares
 
@@ -139,13 +146,11 @@ any object that implements* the interface regardless of its type or hierarchy.
 | **Works with existing types**    | ❌           | ❌   | ✅            | ✅               |
 | **Composable interfaces**        | ❌           | ✅   | ❌            | ✅               |
 | **No base class required**       | ❌           | ❌   | ✅            | ✅               |
-| **Static dispatch**              | ❌ (virtual) | ✅   | ❌            | ✅               |
 | **Runtime polymorphism**         | ✅           | ❌   | ✅            | ✅ (type-erased) |
 | **Compile-time safety (SFINAE)** | ❌           | ✅   | ❌            | ✅               |
 | **Supports mixin views**         | ❌           | ✅   | ❌            | ✅               |
 | **Header-only**                  | ✅           | ✅   | ✅            | ✅               |
 
-TODO - double check this table
 
 ## Patterns That Work Well With Archetype
 
@@ -167,7 +172,10 @@ class DoTheThing
     }
 
   template<typename T>
-  void set_logger(T & t) { valid = logger.bind(t); } //TODO - check this
+  void set_logger(T & t) { 
+    valid = loggable::check<T>::value;
+    logger.bind(t);
+  } 
 };
 ```
 
@@ -187,6 +195,7 @@ ARCHETYPE_DEFINE(readable, ( ARCHETYPE_METHOD(int, read, char *, int)))
 
 template <class W> class WriteAPI : public W {
 public:
+  ARCHETYPE_CHECK(writable, W)
   using W::W;
   using W::write;
   void write_api(const char *buf) {
@@ -196,6 +205,7 @@ public:
 
 template <class R> class ReadAPI : public R {
 public:
+  ARCHETYPE_CHECK(readable, R)
   using R::R;
   using R::read;
   int read_api(char *buf, int size) {
@@ -264,11 +274,14 @@ int num_writes = stateful_ref.write_api("stateful writing");
 # What Happens On Error?
 
 If a type bound to an archetype doesn’t implement all required methods, the code
-will fail at compile time with a clear SFINAE-based error. No runtime surprises.
-
+will fail at compile time with a clear SFINAE-based error. Archetype provides 
+compile time checking on `bind()` but also provides an `ARCHETYPE_CHECK(<archetype>, T)` macro
+for verifying type `T`, and a templated check<T> struct that can be leveraged for SFINAE based
+type checking. 
 # Install
 
-Just drop `archetype.h` into your project.
+Just drop `archetype.h` into your project. Note that if you are compiling with MSVC, you 
+will need to use the `/Zc:preprocessor` compiler options to use c99 compliant preprocessing.
 
 # Philosophy
 
@@ -289,3 +302,8 @@ frameworks, or trying to untangle brittle inheritance hierarchies Archetype is
 for you.
 
 It brings modern modularity to C++11, without the baggage.
+
+
+# How does it work:
+
+Internally archetype creates manual vtables. The manual part is automated through the macro API.
