@@ -32,6 +32,9 @@ template <class BASE> class identity : public BASE {}; // derived is the base
 #define ARCHETYPE_METHOD(ret, name, ...)                                       \
   (ARCH_PP_UNIQUE_NAME(name), ret, name, __VA_ARGS__)
 
+#define ARCHETYPE_CHECK(ARCHETYPE, TYPE)\
+  static_assert(ARCHETYPE::check<TYPE>::value, STRINGIFY(TYPE must satisfy ARCHETYPE::check));
+
 #define ARCHETYPE_DEFINE(NAME, METHODS)                                        \
   struct NAME {                                                                \
     NAME() = delete;                                                           \
@@ -58,6 +61,7 @@ template <class BASE> class identity : public BASE {}; // derived is the base
                                                                                \
     protected:                                                                 \
       template <typename T> void bind(T &t) {                                  \
+        ARCHETYPE_CHECK(NAME, T)                                               \
         this->B::bind(t);                                                      \
         ARCH_PP_EXPAND_CALLSTUB_ASSIGNMENTS(METHODS)                           \
       }                                                                        \
@@ -354,7 +358,7 @@ public:                                                                        \
 #define ARCH_PP_COMMA_IF_ARGS_1 ,
 #define ARCH_PP_COMMA_IF_ARGS_0
 
-// utility (conARCH_PP_CATenation)
+// utility (concatenation)
 #define M_CONC(A, B) M_CONC_(A, B)
 #define M_CONC_(A, B) A##B
 
