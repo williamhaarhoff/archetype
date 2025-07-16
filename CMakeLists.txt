@@ -14,8 +14,8 @@ include_directories(
 
 if (NOT WIN32)
   message(STATUS "Building the example!")
-  add_executable(archetype src/example.cpp)
-  install(TARGETS archetype DESTINATION bin)
+  add_executable(multiinheritance src/multiinheritance.cpp)
+  install(TARGETS multiinheritance DESTINATION bin)
 endif()
 
 
