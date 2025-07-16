@@ -1,7 +1,5 @@
 #include "archetype/archetype.h"
-#include <cstring>
 #include <iostream>
-
 
 // Compose basic types that get composed through multi inheritance
 struct A {

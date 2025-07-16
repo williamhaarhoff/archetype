@@ -15,6 +15,7 @@ include_directories(
 if (NOT WIN32)
   message(STATUS "Building the example!")
   add_executable(multiinheritance src/multiinheritance.cpp)
+  add_executable(mixin_patterns src/mixin_patterns.cpp)
   install(TARGETS multiinheritance DESTINATION bin)
 endif()
 
