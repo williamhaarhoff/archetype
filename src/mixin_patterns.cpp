@@ -153,40 +153,34 @@ int main()
 
 
   // Create a writeable::view that can view DerivedReadWriter
-  std::cout << "Creating a writable::view to view DerivedReadWriter" << std::endl;
   DerivedReadWriter derived_read_writer_instance;
   writable::view write_view_0;
   write_view_0.bind(derived_read_writer_instance);
-  write_view_0.write("Hello from write view, message routed: writable::view::write() -> DerivedReadWriter::write()\r\n", 96);
+  write_view_0.write("Hello from write view\r\n", 96);
   
 
   // Augment the writable::view with the write api
-  std::cout << "\nCreating an augmented writable::view to view and extend Writer" << std::endl;
   Writer writer;
   WriteAPI<writable::view> augmented_write_view_0;
   augmented_write_view_0.bind(writer);
   augmented_write_view_0.write_api(
-    "Hello from augmented view, message routed:  WriteAPI::write_api() -> writeable::view::write() -> Writer::write()\r\n"
+    "Hello from augmented view, using WriteAPI::write_api()\r\n"
   );
 
   // Augmentation without the view
   // This is only safe to do because WriteAPI has no virtuals or member variables
-  std::cout << "\nViewing the raw ComposedReadWriter through the WriteAPI" << std::endl;
   ComposedReadWriter composed_read_writer_instance;
   WriteAPI<ComposedReadWriter> * pure_augmentation_0 = static_cast<WriteAPI<ComposedReadWriter> *>(&composed_read_writer_instance);  
   pure_augmentation_0->write_api(
-    "Hello from pure augmentation messge routed: WriteAPI::write_api() -> ComposedReadWriter::write()\r\n"
+    "Hello from augmented view of raw pointer\r\n"
   );
 
   // Stateful Augmentation 
-  // This is safe because writeable::view is a real type, not a pointer
-  std::cout << "\nViewing the raw DerivedReadWriter as an AbstractWriter through the StatefulWriteAPI" << std::endl;
+  // This is safe because we are using an instance not a pointer
   AbstractWriter * abstract_writer_ptr = static_cast<AbstractWriter*>(&derived_read_writer_instance);
   StatefulWriteAPI<writable::view> stateful_augmented_view;
   stateful_augmented_view.bind(*abstract_writer_ptr);  
-  stateful_augmented_view.write_api(
-    "Hello from stateful augmentation, messge routed: StatefulWriteAPI::write_api() -> AbstractWriter::write() -> DerivedReadWriter::write()\r\n"
-  );
+  stateful_augmented_view.write_api("Hello from stateful augmentation\r\n");
   stateful_augmented_view.write_api("Hello from stateful augmentation\r\n");
   stateful_augmented_view.write_api("Hello from stateful augmentation\r\n");
 
