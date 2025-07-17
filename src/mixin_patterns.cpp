@@ -129,8 +129,15 @@ template <typename  W> struct StatefulWriteAPI : public W {
     size += this->write(buf, strlen(buf));
     return size;
   }
+
+  int get_count(){ return count; }
+  private:
   int count = 0;
 };
+
+
+template <typename T>
+using ReadWriteAPI = ReadAPI<StatefulWriteAPI<T>>;
 
 int main()
 {
@@ -183,6 +190,15 @@ int main()
   stateful_augmented_view.write_api("Hello from stateful augmentation\r\n");
   stateful_augmented_view.write_api("Hello from stateful augmentation\r\n");
   stateful_augmented_view.write_api("Hello from stateful augmentation\r\n");
+
+
+  // Augment pointers with mixins
+  readwritable::ptr<ReadWriteAPI> read_write_ptr;
+  read_write_ptr.bind(composed_read_writer_instance);
+  char buf[5];
+  int read_size;
+  while(read_write_ptr->get_count() < 3){
+  }
 
   return 0;
 
