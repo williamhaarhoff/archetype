@@ -11,6 +11,51 @@ This expands to a structure that contains four substructures. These are:
 -  **A public ptr class.** This gives an alternative public interface that allows using pointer syntax.
 -  **A public templated check<T> structure.** This is used for testing and verifying that type T meets the interface specification using SFINAE
 
+
+
+
+```cpp
+struct writable
+{
+  struct vtable
+  {
+    int (*write)(void * obj, const char *, int);
+  };
+
+  template <typename T>
+  static vtable * make_vtable()
+  {
+    static vtable vtablet;
+    vtablet.write = [](void * obj, const char * arg0, int arg1) -> int {
+      return static_cast<T*>(obj)->write(arg0, arg1);
+    };
+    return &vtablet;
+  }
+
+  struct view
+  {
+    void * obj;
+    vtable * vtbl;
+    int write(const char * arg0, int arg1) { return vtbl->write(obj, arg0, arg1); }
+  };
+
+  template<typename T>
+  static view make_view(T & t)
+  {
+    view v;
+    v.obj = static_cast<void *>(&t);
+    v.vtbl = make_vtable<T>();
+    return v;
+  }
+};
+```
+
+
+
+
+
+
+
 ## Component structure:
 Almost all of the core functionality exists within the protected component that exists within the `basic_interface` struct. I'll start with a stripped down version, and explain how the functionality is build up. 
 
