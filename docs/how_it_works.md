@@ -1,18 +1,5 @@
-```cpp
-ARCHETYPE_DEFINE(basic_interface, (
-  ARCHETYPE_METHOD(int, func0, const char *)
-))
-```
 
-This expands to a structure that contains four substructures. These are:
-
--  **A protected component structure.** This implements the vtable as a stackable layer, but does not have a public interface. 
--  **A public view class.** Stacks the component on top of a base, and provides the public bind() function while keeping the internal component layer private. 
--  **A public ptr class.** This gives an alternative public interface that allows using pointer syntax.
--  **A public templated check<T> structure.** This is used for testing and verifying that type T meets the interface specification using SFINAE
-
-
-
+The basic idea:
 
 ```cpp
 struct writable
@@ -49,6 +36,176 @@ struct writable
   }
 };
 ```
+
+Making it composable:
+
+```cpp
+struct VTableBase {
+
+  template<typename T>
+  static VTableBase * make_vtable() {
+    static VTableBase vtablet;
+    return &vtablet;
+  }
+
+  template <typename T>
+  void bind() {}
+};
+
+template<typename VTableType>
+struct ViewBase
+{
+  void * _obj;
+  VTableType * _vtbl;
+};
+
+
+struct writable
+{
+  template<typename BaseVTable = VTableBase>
+  struct vtable : public BaseVTable
+  {
+    int (*write)(void * obj, const char *, int);
+    
+    template<typename T>
+    void bind()
+    {
+      this->BaseVTable::template bind<T>();
+
+      write = [](void * obj, const char * arg0, int arg1) -> int {
+        return static_cast<T*>(obj)->write(arg0, arg1); 
+      };
+    }
+
+    public:
+    template<typename T>
+    static vtable * make_vtable()
+    {
+      static vtable<BaseVTable> vtablet;
+      vtablet.bind<T>();
+
+      return &vtablet;
+    }
+  };
+
+
+  template<typename BaseViewLayer = ViewBase<vtable<>>>
+  struct ViewLayer : public BaseViewLayer
+  {
+    using BaseViewLayer::_obj;
+    using BaseViewLayer::_vtbl;
+
+    int write(const char * arg0, int arg1) { return _vtbl->write(_obj, arg0, arg1); }
+  };
+
+  struct view : public ViewLayer<> {};
+
+  template<typename T>
+  static view make_view(T & t)
+  {
+    view v;
+    v._obj = static_cast<void *>(&t);
+    v._vtbl = vtable<>::make_vtable<T>();
+    return v;
+  }
+};
+
+struct readable
+{
+  template<typename BaseVTable = VTableBase>
+  struct vtable : public BaseVTable
+  {
+    int (*read)(void * obj, char *, int);
+    
+    template<typename T>
+    void bind()
+    {
+      this->BaseVTable::template bind<T>();
+
+      read = [](void * obj, char * arg0, int arg1) -> int {
+        return static_cast<T*>(obj)->read(arg0, arg1); 
+      };
+    }
+
+    public:
+    template<typename T>
+    static vtable * make_vtable()
+    {
+      static vtable<BaseVTable> vtablet;
+      vtablet.bind<T>();
+
+      return &vtablet;
+    }
+  };
+
+
+  template<typename BaseViewLayer = ViewBase<vtable<>>>
+  struct ViewLayer : public BaseViewLayer
+  {
+    using BaseViewLayer::_obj;
+    using BaseViewLayer::_vtbl;
+
+    int read(char * arg0, int arg1) { return _vtbl->read(_obj, arg0, arg1); }
+  };
+
+  struct view : public ViewLayer<> {};
+
+  template<typename T>
+  static view make_view(T & t)
+  {
+    view v;
+    v._obj = static_cast<void *>(&t);
+    v._vtbl = vtable<>::make_vtable<T>();
+    return v;
+  }
+};
+
+
+struct readwritable
+{
+  template<typename BaseVTable = VTableBase>
+  struct vtable : public writable::vtable<readable::vtable<BaseVTable>>
+  {
+    using this_base = writable::vtable<readable::vtable<BaseVTable>>;
+    
+    template<typename T>
+    void bind()
+    {
+      this->this_base::template bind<T>();
+    }
+
+    public:
+    template<typename T>
+    static vtable * make_vtable()
+    {
+      static vtable<BaseVTable> vtablet;
+      vtablet.bind<T>();
+
+      return &vtablet;
+    }
+  };
+
+
+  template<typename BaseViewLayer = ViewBase<vtable<>>>
+  struct ViewLayer : public writable::ViewLayer<readable::ViewLayer<BaseViewLayer>>
+  {
+    using BaseViewLayer::_obj;
+    using BaseViewLayer::_vtbl;
+  };
+
+  struct view : public ViewLayer<> {};
+
+  template<typename T>
+  static view make_view(T & t)
+  {
+    view v;
+    v._obj = static_cast<void *>(&t);
+    v._vtbl = vtable<>::make_vtable<T>();
+    return v;
+  }
+};
+```
+
 
 
 

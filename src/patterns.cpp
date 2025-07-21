@@ -4,24 +4,29 @@
 #include <iostream>
 
 
-struct DummyVTable {
+struct VTableBase {
 
   template<typename T>
-  static DummyVTable * make_vtable() {
-    static DummyVTable vtablet;
+  static VTableBase * make_vtable() {
+    static VTableBase vtablet;
     return &vtablet;
   }
 
   template <typename T>
   void bind() {}
-  
 };
 
+template<typename VTableType>
+struct ViewBase
+{
+  void * _obj;
+  VTableType * _vtbl;
+};
 
 
 struct writable
 {
-  template<typename BaseVTable = DummyVTable>
+  template<typename BaseVTable = VTableBase>
   struct vtable : public BaseVTable
   {
     int (*write)(void * obj, const char *, int);
@@ -35,7 +40,6 @@ struct writable
         return static_cast<T*>(obj)->write(arg0, arg1); 
       };
     }
-
     public:
     template<typename T>
     static vtable * make_vtable()
@@ -47,37 +51,41 @@ struct writable
     }
   };
 
-  struct view
+
+  template<typename BaseViewLayer = ViewBase<vtable<>>>
+  struct ViewLayer : public BaseViewLayer
   {
-    void * obj;
-    vtable<> * vtbl;
-    int write(const char * arg0, int arg1) { return vtbl->write(obj, arg0, arg1); }
+    using BaseViewLayer::_obj;
+    using BaseViewLayer::_vtbl;
+
+    int write(const char * arg0, int arg1) { return _vtbl->write(_obj, arg0, arg1); }
   };
+
+  struct view : public ViewLayer<> {};
 
   template<typename T>
   static view make_view(T & t)
   {
     view v;
-    v.obj = static_cast<void *>(&t);
-    v.vtbl = vtable<>::make_vtable<T>();
+    v._obj = static_cast<void *>(&t);
+    v._vtbl = vtable<>::make_vtable<T>();
     return v;
   }
 };
 
-
 struct readable
 {
-  template<typename BaseVTable = DummyVTable>
+  template<typename BaseVTable = VTableBase>
   struct vtable : public BaseVTable
   {
-    int (*read)(void * obj, const char *, int);
+    int (*read)(void * obj, char *, int);
     
     template<typename T>
     void bind()
     {
       this->BaseVTable::template bind<T>();
 
-      read = [](void * obj, const char * arg0, int arg1) -> int {
+      read = [](void * obj, char * arg0, int arg1) -> int {
         return static_cast<T*>(obj)->read(arg0, arg1); 
       };
     }
@@ -93,34 +101,40 @@ struct readable
     }
   };
 
-  struct view
+
+  template<typename BaseViewLayer = ViewBase<vtable<>>>
+  struct ViewLayer : public BaseViewLayer
   {
-    void * obj;
-    vtable<> * vtbl;
-    int read(const char * arg0, int arg1) { return vtbl->read(obj, arg0, arg1); }
+    using BaseViewLayer::_obj;
+    using BaseViewLayer::_vtbl;
+
+    int read(char * arg0, int arg1) { return _vtbl->read(_obj, arg0, arg1); }
   };
+
+  struct view : public ViewLayer<> {};
 
   template<typename T>
   static view make_view(T & t)
   {
     view v;
-    v.obj = static_cast<void *>(&t);
-    v.vtbl = vtable<>::make_vtable<T>();
+    v._obj = static_cast<void *>(&t);
+    v._vtbl = vtable<>::make_vtable<T>();
     return v;
   }
 };
 
+
 struct readwritable
 {
-  template<typename BaseVTable = DummyVTable>
-  struct vtable : public BaseVTable
+  template<typename BaseVTable = VTableBase>
+  struct vtable : public writable::vtable<readable::vtable<BaseVTable>>
   {
-    int (*read)(void * obj, const char *, int);
+    using this_base = writable::vtable<readable::vtable<BaseVTable>>;
     
     template<typename T>
     void bind()
     {
-      this->BaseVTable::template bind<T>();
+      this->this_base::template bind<T>();
     }
 
     public:
@@ -134,22 +148,26 @@ struct readwritable
     }
   };
 
-  struct view
+
+  template<typename BaseViewLayer = ViewBase<vtable<>>>
+  struct ViewLayer : public writable::ViewLayer<readable::ViewLayer<BaseViewLayer>>
   {
-    void * obj;
-    vtable<> * vtbl;
-    int read(const char * arg0, int arg1) { return vtbl->read(obj, arg0, arg1); }
+    using BaseViewLayer::_obj;
+    using BaseViewLayer::_vtbl;
   };
+
+  struct view : public ViewLayer<> {};
 
   template<typename T>
   static view make_view(T & t)
   {
     view v;
-    v.obj = static_cast<void *>(&t);
-    v.vtbl = vtable<>::make_vtable<T>();
+    v._obj = static_cast<void *>(&t);
+    v._vtbl = vtable<>::make_vtable<T>();
     return v;
   }
 };
+
 
 
 
@@ -197,8 +215,14 @@ struct DerivedReadWriter : public AbstractWriter, public AbstractReader
 int main()
 {
   DerivedReadWriter wr;
-  writable::view v = writable::make_view(wr);
+  writable::view wv = writable::make_view(wr);
+  readable::view rv = readable::make_view(wr);
+  readwritable::view wrv = readwritable::make_view(wr);
 
-  v.write("hello\n", 7);
+  wrv.write("hello\n", 7);
+
+  char buf[5];
+  wrv.read(buf, sizeof(buf));
+  printf("done\n");
   return 0;
 }
