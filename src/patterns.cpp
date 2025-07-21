@@ -16,19 +16,28 @@ struct VTableBase {
   void bind() {}
 };
 
+
 template<typename VTableType>
-struct ViewBase
+class ViewBase
 {
+  protected:
   void * _obj;
   VTableType * _vtbl;
 };
 
 
+template<typename T>
+struct exposer : public T {};
+
 struct writable
 {
+  // forward delcarations
+  struct view;
+  template<typename T> view make_view(T & );
+
+
   template<typename BaseVTable = VTableBase>
-  struct vtable : public BaseVTable
-  {
+  struct vtable : public BaseVTable {
     int (*write)(void * obj, const char *, int);
     
     template<typename T>
@@ -55,18 +64,24 @@ struct writable
   template<typename BaseViewLayer = ViewBase<vtable<>>>
   struct ViewLayer : public BaseViewLayer
   {
+    protected:
     using BaseViewLayer::_obj;
     using BaseViewLayer::_vtbl;
 
+    public:
     int write(const char * arg0, int arg1) { return _vtbl->write(_obj, arg0, arg1); }
   };
 
-  struct view : public ViewLayer<> {};
+  struct view : public ViewLayer<> {
+    template<typename T> friend view make_view<T &t>;
+  };
+
 
   template<typename T>
   static view make_view(T & t)
   {
     view v;
+    
     v._obj = static_cast<void *>(&t);
     v._vtbl = vtable<>::make_vtable<T>();
     return v;
@@ -105,9 +120,10 @@ struct readable
   template<typename BaseViewLayer = ViewBase<vtable<>>>
   struct ViewLayer : public BaseViewLayer
   {
+    protected:
     using BaseViewLayer::_obj;
     using BaseViewLayer::_vtbl;
-
+    public:
     int read(char * arg0, int arg1) { return _vtbl->read(_obj, arg0, arg1); }
   };
 
@@ -152,11 +168,13 @@ struct readwritable
   template<typename BaseViewLayer = ViewBase<vtable<>>>
   struct ViewLayer : public writable::ViewLayer<readable::ViewLayer<BaseViewLayer>>
   {
+    protected:
     using BaseViewLayer::_obj;
     using BaseViewLayer::_vtbl;
   };
 
-  struct view : public ViewLayer<> {};
+
+  struct view : public ViewLayer<> { };
 
   template<typename T>
   static view make_view(T & t)
@@ -224,5 +242,9 @@ int main()
   char buf[5];
   wrv.read(buf, sizeof(buf));
   printf("done\n");
+
+  std::cout << "wrv._obj: " << &wrv._obj << std::endl; 
+
+  
   return 0;
 }
