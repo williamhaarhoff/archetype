@@ -6,27 +6,43 @@
 //-- Utilities
 namespace archetype {
 
-class Base {
-public:
-  virtual ~Base() {};
-  template <typename T> void bind(T &t) { _obj = static_cast<void *>(&t); }
+  struct vtable_base 
+  {
+    template<typename T>
+    static vtable_base * make_vtable() {
+      static vtable_base vtablet;
+      return &vtablet;
+    }
 
-protected:
-  void *_obj;
-};
+    template <typename T>
+    void bind() {}
+  };
 
-template <typename...> // std::void_t - pre c++17
-using void_t = void;
+  template<typename VTableType>
+  class view_base
+  {
+    protected:
+    void * _obj;
+    VTableType * _vtbl;
+  };
 
-template <class C>
-class helper { // friend of component, used for inheritance chaining
-public:
-  template <typename T = archetype::Base>
-  using get = typename C::template component<T>;
-};
+  template <typename...> // std::void_t - pre c++17
+  using void_t = void;
 
-template <class BASE> class identity : public BASE {}; // derived is the base
+  template<typename Base>
+  struct identity : public Base {};
+
+  template <class Archetype> 
+  struct helper 
+  {
+    template <typename T = vtable_base>
+    using vtable = typename Archetype::template vtable<T>;
+    
+    template<typename T = view_base<vtable<>>>
+    using view_layer = typename Archetype::template view_layer<T>;
+  };
 } // namespace archetype
+
 
 //-- API
 #define ARCHETYPE_METHOD(ret, name, ...)                                       \
@@ -38,61 +54,59 @@ template <class BASE> class identity : public BASE {}; // derived is the base
 #define ARCHETYPE_DEFINE(NAME, METHODS)                                        \
   struct NAME {                                                                \
     NAME() = delete;                                                           \
+    ~NAME() = delete;                                                          \
+    NAME & operator=(const NAME &) = delete;                                   \
                                                                                \
-  public:                                                                      \
     friend class archetype::helper<NAME>;                                      \
-                                                                               \
-    template <template <typename> class Interface> class ptr;                  \
                                                                                \
     /* SFINAE based type checking against requirements */                      \
     template <typename, typename = void> struct check : std::false_type {};    \
                                                                                \
     template <typename T>                                                      \
     struct check<                                                              \
-        T, archetype::void_t<decltype(ARCH_PP_EXPAND_REQUIREMENTS(METHODS))>>  \
-        : std::true_type {};                                                   \
+      T, archetype::void_t<decltype(ARCH_PP_EXPAND_REQUIREMENTS(METHODS))>>    \
+      : std::true_type {};                                                     \
                                                                                \
-    /* Internal protected view component implementation */                     \
-  protected:                                                                   \
-    template <typename B = archetype::Base> class component : public B {       \
-    public:                                                                    \
-      template <template <typename> class Interface> friend class ptr;         \
-      ARCH_PP_EXPAND_METHODS(METHODS)                                          \
-                                                                               \
+    /* Internal protected vtable, and view_layer implementation */             \
     protected:                                                                 \
-      template <typename T> void bind(T &t) {                                  \
+    template <typename BaseVTable = archetype::vtable_base>                    \
+    struct vtable : public BaseVTable                                          \
+    {                                                                          \
+      ARCH_PP_EXPAND_CALLSTUB_MEMBERS(METHODS)                                 \
+                                                                               \
+      template<typename T>                                                     \
+      void bind()                                                              \
+      {                                                                        \
         ARCHETYPE_CHECK(NAME, T)                                               \
-        this->B::bind(t);                                                      \
+        this->BaseVTable::template bind<T>();                                  \
         ARCH_PP_EXPAND_CALLSTUB_ASSIGNMENTS(METHODS)                           \
       }                                                                        \
                                                                                \
-      using B::_obj;                                                           \
-      ARCH_PP_EXPAND_CALLSTUB_MEMBERS(METHODS)                                 \
+      template<typename T>                                                     \
+      static vtable * make_vtable()                                            \
+      {                                                                        \
+        static vtable<BaseVTable> vtablet;                                     \
+        vtablet.bind<T>();                                                     \
+        return &vtablet;                                                       \
+      }                                                                        \
+                                                                               \
     };                                                                         \
                                                                                \
-    /* Public view, exposes component interface*/                              \
-  public:                                                                      \
-    class view : public component<archetype::Base> {                           \
+    template<typename BaseViewLayer = archetype::view_base<vtable<>>>          \
+    struct view_layer : public BaseViewLayer                                   \
+    {                                                                          \
+      ARCH_PP_EXPAND_METHODS(METHODS)                                          \
+                                                                               \
+      protected:                                                               \
+      using BaseViewLayer::_obj;                                               \
+      using BaseViewLayer::_vtbl;                                              \
+    };                                                                         \
+                                                                               \
+    /* Public view, and ptr structures */                                      \
     public:                                                                    \
-      using component<archetype::Base>::bind;                                  \
-    };                                                                         \
-                                                                               \
-    template <template <typename> class Interface = archetype::identity>       \
-    class ptr {                                                                \
-    private:                                                                   \
-      using T = Interface<component<>>;                                        \
-      T impl;                                                                  \
-                                                                               \
-    public:                                                                    \
-      template <typename CONCEPT> void bind(CONCEPT &ref) { impl.bind(ref); }  \
-                                                                               \
-      T &operator*() { return &impl; }                                         \
-      const T &operator*() const { return &impl; }                             \
-                                                                               \
-      T *operator->() { return &impl; }                                        \
-      const T *operator->() const { return &impl; }                            \
-    };                                                                         \
+    ARCH_PP_COMMON_BLOCK                                                       \
   };
+
 
 #define ARCHETYPE_COMPOSE(NAME, ...)                                           \
   struct NAME {                                                                \
@@ -141,6 +155,32 @@ template <class BASE> class identity : public BASE {}; // derived is the base
   };
 
 //-- High level internal expansions
+#define ARCH_PP_COMMON_BLOCK                                                   \
+  struct view : public view_layer<>                                            \
+  {                                                                            \
+    template<typename T>                                                       \
+    view(T & t)                                                                \
+    {                                                                          \
+      this->_obj = static_cast<void *>(&t);                                    \
+      this->_vtbl = vtable<>::make_vtable<T>();                                \
+    }                                                                          \
+  };                                                                           \
+                                                                               \
+  template <template <typename> class API = archetype::identity>         \
+  struct ptr                                                                   \
+  {                                                                            \
+    template<typename T>                                                       \
+    ptr(T & t) : _view(t) {}                                                   \
+                                                                               \
+    API<view> &operator*() { return &_view; }                                  \
+    const API<view> &operator*() const { return &_view; }                      \
+    API<view> *operator->() { return &_view; }                                 \
+    const API<view> *operator->() const { return &_view; }                     \
+                                                                               \
+    protected:                                                                 \
+    API<view> _view;                                                           \
+  };
+
 #define ARCH_PP_EXPAND_METHODS(METHODS) ARCH_PP_EXPAND_METHODS_IMPL METHODS
 
 #define ARCH_PP_EXPAND_METHODS_IMPL(...)                                       \
@@ -426,5 +466,7 @@ public:                                                                        \
 
 #define ARCH_PP_ARG_NAMES(count, ...)                                          \
   ARCH_PP_CAT(ARCH_PP_ARG_NAMES_, count)(__VA_ARGS__)
+
+ARCHETYPE_DEFINE(writable, (ARCHETYPE_METHOD(int, write, const char *, int)))
 
 #endif //__ARCHETYPE_H__

@@ -44,7 +44,6 @@ struct writable
   friend class helper<writable>;
 
   protected:
-
   template<typename BaseVTable = vtable_base>
   struct vtable : public BaseVTable {
     int (*write)(void * obj, const char *, int);
@@ -70,12 +69,12 @@ struct writable
     }
   };
 
-  template<typename Baseview_layer = view_base<vtable<>>>
-  struct view_layer : public Baseview_layer
+  template<typename BaseViewLayer = view_base<vtable<>>>
+  struct view_layer : public BaseViewLayer
   {
     protected:
-    using Baseview_layer::_obj;
-    using Baseview_layer::_vtbl;
+    using BaseViewLayer::_obj;
+    using BaseViewLayer::_vtbl;
 
     public:
     int write(const char * arg0, int arg1) { return _vtbl->write(_obj, arg0, arg1); }
@@ -91,21 +90,6 @@ struct writable
       this->_obj = static_cast<void *>(&t);
       this->_vtbl = vtable<>::make_vtable<T>();
     }
-  };
-
-  template <template <typename> class API = identity>
-  struct view_ptr
-  {
-    template<typename T>
-    view_ptr(T & t) : _view(t) {}
-
-    API<view> &operator*() { return &_view; }
-    const API<view> &operator*() const { return &_view; }
-    API<view> *operator->() { return &_view; }
-    const API<view> *operator->() const { return &_view; }
-
-    protected:
-    API<view> _view;
   };
 };
 
@@ -146,12 +130,12 @@ struct readable
   };
 
 
-  template<typename Baseview_layer = view_base<vtable<>>>
-  struct view_layer : public Baseview_layer
+  template<typename BaseViewLayer = view_base<vtable<>>>
+  struct view_layer : public BaseViewLayer
   {
     protected:
-    using Baseview_layer::_obj;
-    using Baseview_layer::_vtbl;
+    using BaseViewLayer::_obj;
+    using BaseViewLayer::_vtbl;
 
     public:
     int read(char * arg0, int arg1) { return _vtbl->read(_obj, arg0, arg1); }
@@ -202,12 +186,12 @@ struct readwritable
   };
 
 
-  template<typename Baseview_layer = view_base<vtable<>>>
-  struct view_layer : public helper<writable>::view_layer<helper<readable>::view_layer<Baseview_layer>>
+  template<typename BaseViewLayer = view_base<vtable<>>>
+  struct view_layer : public helper<writable>::view_layer<helper<readable>::view_layer<BaseViewLayer>>
   {
     protected:
-    using Baseview_layer::_obj;
-    using Baseview_layer::_vtbl;
+    using BaseViewLayer::_obj;
+    using BaseViewLayer::_vtbl;
   };
 
   public:
