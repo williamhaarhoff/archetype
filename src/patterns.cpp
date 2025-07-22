@@ -1,14 +1,11 @@
-
-
 #include <cstddef>
 #include <iostream>
 
-
-struct VTableBase {
-
+struct vtable_base 
+{
   template<typename T>
-  static VTableBase * make_vtable() {
-    static VTableBase vtablet;
+  static vtable_base * make_vtable() {
+    static vtable_base vtablet;
     return &vtablet;
   }
 
@@ -16,19 +13,25 @@ struct VTableBase {
   void bind() {}
 };
 
-
 template<typename VTableType>
-class ViewBase
+class view_base
 {
   protected:
   void * _obj;
   VTableType * _vtbl;
 };
 
-template <class C> class helper {
-public:
-  template <typename T = VTableBase>
+template<typename T>
+struct identity : public T {};
+
+template <class C> struct 
+helper 
+{
+  template <typename T = vtable_base>
   using vtable = typename C::template vtable<T>;
+  
+  template<typename T = view_base<vtable<>>>
+  using view_layer = typename C::template view_layer<T>;
 };
 
 struct writable
@@ -41,7 +44,8 @@ struct writable
   friend class helper<writable>;
 
   protected:
-  template<typename BaseVTable = VTableBase>
+
+  template<typename BaseVTable = vtable_base>
   struct vtable : public BaseVTable {
     int (*write)(void * obj, const char *, int);
     
@@ -66,20 +70,20 @@ struct writable
     }
   };
 
-
-  template<typename BaseViewLayer = ViewBase<vtable<>>>
-  struct ViewLayer : public BaseViewLayer
+  template<typename Baseview_layer = view_base<vtable<>>>
+  struct view_layer : public Baseview_layer
   {
     protected:
-    using BaseViewLayer::_obj;
-    using BaseViewLayer::_vtbl;
+    using Baseview_layer::_obj;
+    using Baseview_layer::_vtbl;
 
     public:
     int write(const char * arg0, int arg1) { return _vtbl->write(_obj, arg0, arg1); }
   };
 
+
   public:
-  struct view : public ViewLayer<> 
+  struct view : public view_layer<> 
   {
     template<typename T>
     view(T & t)
@@ -87,6 +91,21 @@ struct writable
       this->_obj = static_cast<void *>(&t);
       this->_vtbl = vtable<>::make_vtable<T>();
     }
+  };
+
+  template <template <typename> class API = identity>
+  struct view_ptr
+  {
+    template<typename T>
+    view_ptr(T & t) : _view(t) {}
+
+    API<view> &operator*() { return &_view; }
+    const API<view> &operator*() const { return &_view; }
+    API<view> *operator->() { return &_view; }
+    const API<view> *operator->() const { return &_view; }
+
+    protected:
+    API<view> _view;
   };
 };
 
@@ -101,7 +120,7 @@ struct readable
   friend class helper<readable>;
 
   protected:
-  template<typename BaseVTable = VTableBase>
+  template<typename BaseVTable = vtable_base>
   struct vtable : public BaseVTable {
     int (*read)(void * obj, char *, int);
     
@@ -127,19 +146,19 @@ struct readable
   };
 
 
-  template<typename BaseViewLayer = ViewBase<vtable<>>>
-  struct ViewLayer : public BaseViewLayer
+  template<typename Baseview_layer = view_base<vtable<>>>
+  struct view_layer : public Baseview_layer
   {
     protected:
-    using BaseViewLayer::_obj;
-    using BaseViewLayer::_vtbl;
+    using Baseview_layer::_obj;
+    using Baseview_layer::_vtbl;
 
     public:
     int read(char * arg0, int arg1) { return _vtbl->read(_obj, arg0, arg1); }
   };
 
   public:
-  struct view : public ViewLayer<> 
+  struct view : public view_layer<> 
   {
     template<typename T>
     view(T & t)
@@ -161,7 +180,7 @@ struct readwritable
   friend class helper<readwritable>;
 
   protected:
-  template<typename BaseVTable = VTableBase>
+  template<typename BaseVTable = vtable_base>
   struct vtable : public helper<writable>::vtable<helper<readable>::vtable<BaseVTable>>
   {
     using this_base = helper<writable>::vtable<helper<readable>::vtable<BaseVTable>>;
@@ -183,19 +202,16 @@ struct readwritable
   };
 
 
-  template<typename BaseViewLayer = ViewBase<vtable<>>>
-  struct ViewLayer : public BaseViewLayer
+  template<typename Baseview_layer = view_base<vtable<>>>
+  struct view_layer : public helper<writable>::view_layer<helper<readable>::view_layer<Baseview_layer>>
   {
     protected:
-    using BaseViewLayer::_obj;
-    using BaseViewLayer::_vtbl;
-
-    public:
-    int read(char * arg0, int arg1) { return _vtbl->read(_obj, arg0, arg1); }
+    using Baseview_layer::_obj;
+    using Baseview_layer::_vtbl;
   };
 
   public:
-  struct view : public ViewLayer<> 
+  struct view : public view_layer<> 
   {
     template<typename T>
     view(T & t)
@@ -205,53 +221,6 @@ struct readwritable
     }
   };
 };
-
-// struct readwritable
-// {
-//   template<typename BaseVTable = VTableBase>
-//   struct vtable : public writable::vtable<readable::vtable<BaseVTable>>
-//   {
-//     using this_base = writable::vtable<readable::vtable<BaseVTable>>;
-    
-//     template<typename T>
-//     void bind()
-//     {
-//       this->this_base::template bind<T>();
-//     }
-
-//     public:
-//     template<typename T>
-//     static vtable * make_vtable()
-//     {
-//       static vtable<BaseVTable> vtablet;
-//       vtablet.bind<T>();
-
-//       return &vtablet;
-//     }
-//   };
-
-//   template<typename BaseViewLayer = ViewBase<vtable<>>>
-//   struct ViewLayer : public writable::ViewLayer<readable::ViewLayer<BaseViewLayer>>
-//   {
-//     protected:
-//     using BaseViewLayer::_obj;
-//     using BaseViewLayer::_vtbl;
-//   };
-
-//   struct view : public ViewLayer<> 
-//   {
-//     template<typename T>
-//     view(T & t)
-//     {
-//       this->_obj = static_cast<void *>(&t);
-//       this->_vtbl = vtable<>::make_vtable<T>();
-//     }
-//   };
-// };
-
-
-
-
 
 
 
@@ -298,25 +267,18 @@ int main()
   DerivedReadWriter wr;
   writable::view wv(wr);
   readable::view rv(wr);
-  // readwritable::view wrv(wr);
+  readwritable::view wrv(wr);
 
-  helper<writable>::vtable<helper<readable>::vtable<>> built;
-  
+  //helper<writable>::vtable<helper<readable>::vtable<>> built;
 
-  // wrv.write("hello\n", 7);
+
+  wrv.write("hello\n", 7);
 
   char buf[5];
-  // wrv.read(buf, sizeof(buf));
+  wrv.read(buf, sizeof(buf));
   printf("done\n");
 
 
-
-  // std::cout << "wrv._obj: " << &wrv._obj << std::endl; 
-  
-
-  
-  
-  
 
   // std::cout << "wrv._obj: " << &wrv._obj << std::endl; 
 

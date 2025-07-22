@@ -206,7 +206,191 @@ struct readwritable
 };
 ```
 
+Adding access control, to only expose part of the API
 
+```cpp
+struct vtable_base 
+{
+  template<typename T>
+  static vtable_base * make_vtable() {
+    static vtable_base vtablet;
+    return &vtablet;
+  }
+
+  template <typename T>
+  void bind() {}
+};
+
+template<typename VTableType>
+class view_base
+{
+  protected:
+  void * _obj;
+  VTableType * _vtbl;
+};
+
+template <class C> struct 
+helper 
+{
+  template <typename T = vtable_base>
+  using vtable = typename C::template vtable<T>;
+  
+  template<typename T = view_base<vtable<>>>
+  using view_layer = typename C::template view_layer<T>;
+};
+
+struct writable
+{
+  public:
+  writable() = delete;
+  ~writable() = delete;
+  writable & operator=(const writable &) = delete;
+  
+  friend class helper<writable>;
+
+  protected:
+  template<typename BaseVTable = vtable_base>
+  struct vtable : public BaseVTable {
+    int (*write)(void * obj, const char *, int);
+    
+    template<typename T>
+    void bind()
+    {
+      this->BaseVTable::template bind<T>();
+
+      write = [](void * obj, const char * arg0, int arg1) -> int {
+        return static_cast<T*>(obj)->write(arg0, arg1); 
+      };
+    }
+
+    public:
+    template<typename T>
+    static vtable * make_vtable()
+    {
+      static vtable<BaseVTable> vtablet;
+      vtablet.bind<T>();
+
+      return &vtablet;
+    }
+  };
+
+
+  template<typename Baseview_layer = view_base<vtable<>>>
+  struct view_layer : public Baseview_layer
+  {
+    protected:
+    using Baseview_layer::_obj;
+    using Baseview_layer::_vtbl;
+
+    public:
+    int write(const char * arg0, int arg1) { return _vtbl->write(_obj, arg0, arg1); }
+  };
+
+  public:
+  struct view : public view_layer<> 
+  {
+    template<typename T>
+    view(T & t)
+    {
+      this->_obj = static_cast<void *>(&t);
+      this->_vtbl = vtable<>::make_vtable<T>();
+    }
+  };
+};
+
+
+struct readable
+{
+  public:
+  readable() = delete;
+  ~readable() = delete;
+  readable & operator=(const readable &) = delete;
+  
+  friend class helper<readable>;
+
+  protected:
+  template<typename BaseVTable = vtable_base>
+  struct vtable : public BaseVTable {
+    int (*read)(void * obj, char *, int);
+    
+    template<typename T>
+    void bind()
+    {
+      this->BaseVTable::template bind<T>();
+
+      read = [](void * obj, char * arg0, int arg1) -> int {
+        return static_cast<T*>(obj)->read(arg0, arg1); 
+      };
+    }
+
+    public:
+    template<typename T>
+    static vtable * make_vtable()
+    {
+      static vtable<BaseVTable> vtablet;
+      vtablet.bind<T>();
+
+      return &vtablet;
+    }
+  };
+
+
+  template<typename Baseview_layer = view_base<vtable<>>>
+  struct view_layer : public Baseview_layer
+  {
+    protected:
+    using Baseview_layer::_obj;
+    using Baseview_layer::_vtbl;
+
+    public:
+    int read(char * arg0, int arg1) { return _vtbl->read(_obj, arg0, arg1); }
+  };
+
+  public:
+  struct view : public view_layer<> 
+  {
+    template<typename T>
+    view(T & t)
+    {
+      this->_obj = static_cast<void *>(&t);
+      this->_vtbl = vtable<>::make_vtable<T>();
+    }
+  };
+};
+
+
+struct readwritable
+{
+  public:
+  readwritable() = delete;
+  ~readwritable() = delete;
+  readwritable & operator=(const readwritable &) = delete;
+  
+  friend class helper<readwritable>;
+
+  protected:
+  template<typename BaseVTable = vtable_base>
+  struct vtable : public helper<writable>::vtable<helper<readable>::vtable<BaseVTable>>
+  {
+    using this_base = helper<writable>::vtable<helper<readable>::vtable<BaseVTable>>;
+    template<typename T>
+    void bind()
+    {
+      this->this_base::template bind<T>();
+    }
+
+    public:
+    template<typename T>
+    static vtable * make_vtable()
+    {
+      static vtable<BaseVTable> vtablet;
+      vtablet.bind<T>();
+
+      return &vtablet;
+    }
+  };
+
+```
 
 
 
