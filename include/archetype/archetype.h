@@ -30,7 +30,9 @@ namespace archetype {
   using void_t = void;
 
   template<typename Base>
-  struct identity : public Base {};
+  struct identity : public Base {
+    using Base::Base;
+  };
 
   template <class Archetype> 
   struct helper 
@@ -57,7 +59,7 @@ namespace archetype {
     ~NAME() = delete;                                                          \
     NAME & operator=(const NAME &) = delete;                                   \
                                                                                \
-    friend class archetype::helper<NAME>;                                      \
+    friend struct archetype::helper<NAME>;                                      \
                                                                                \
     /* SFINAE based type checking against requirements */                      \
     template <typename, typename = void> struct check : std::false_type {};    \
@@ -114,7 +116,7 @@ namespace archetype {
     ~NAME() = delete;                                                          \
     NAME & operator=(const NAME &) = delete;                                   \
                                                                                \
-    friend class archetype::helper<NAME>;                                      \
+    friend struct archetype::helper<NAME>;                                      \
                                                                                \
     /* SFINAE based type checking against requirements */                      \
     template <typename T>                                                      \

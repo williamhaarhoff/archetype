@@ -161,15 +161,13 @@ int main()
 
   // Create a writeable::view that can view DerivedReadWriter
   DerivedReadWriter derived_read_writer_instance;
-  writable::view write_view_0;
-  write_view_0.bind(derived_read_writer_instance);
+  writable::view write_view_0(derived_read_writer_instance);
   write_view_0.write("Hello from write view\r\n", 96);
   
 
   // Augment the writable::view with the write api
   Writer writer;
-  WriteAPI<writable::view> augmented_write_view_0;
-  augmented_write_view_0.bind(writer);
+  WriteAPI<writable::view> augmented_write_view_0(writer);
   augmented_write_view_0.write_api(
     "Hello from augmented view, using WriteAPI::write_api()\r\n"
   );
@@ -185,21 +183,18 @@ int main()
   // Stateful Augmentation 
   // This is safe because we are using an instance not a pointer
   AbstractWriter * abstract_writer_ptr = static_cast<AbstractWriter*>(&derived_read_writer_instance);
-  StatefulWriteAPI<writable::view> stateful_augmented_view;
-  stateful_augmented_view.bind(*abstract_writer_ptr);  
+  StatefulWriteAPI<writable::view> stateful_augmented_view(*abstract_writer_ptr);  
   stateful_augmented_view.write_api("Hello from stateful augmentation\r\n");
   stateful_augmented_view.write_api("Hello from stateful augmentation\r\n");
   stateful_augmented_view.write_api("Hello from stateful augmentation\r\n");
 
 
   // Augment pointers with mixins
-  readwritable::ptr<ReadWriteAPI> read_write_ptr;
-  read_write_ptr.bind(composed_read_writer_instance);
+  readwritable::ptr<ReadWriteAPI> read_write_ptr(composed_read_writer_instance);
   char buf[5];
   int read_size;
   while(read_write_ptr->get_count() < 3){
   }
 
   return 0;
-
 }

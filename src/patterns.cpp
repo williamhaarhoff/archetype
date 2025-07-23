@@ -41,7 +41,7 @@ struct writable
   ~writable() = delete;
   writable & operator=(const writable &) = delete;
   
-  friend class helper<writable>;
+  friend struct helper<writable>;
 
   protected:
   template<typename BaseVTable = vtable_base>
@@ -101,7 +101,7 @@ struct readable
   ~readable() = delete;
   readable & operator=(const readable &) = delete;
   
-  friend class helper<readable>;
+  friend struct helper<readable>;
 
   protected:
   template<typename BaseVTable = vtable_base>
@@ -161,7 +161,7 @@ struct readwritable
   ~readwritable() = delete;
   readwritable & operator=(const readwritable &) = delete;
   
-  friend class helper<readwritable>;
+  friend struct helper<readwritable>;
 
   protected:
   template<typename BaseVTable = vtable_base>
@@ -253,19 +253,11 @@ int main()
   readable::view rv(wr);
   readwritable::view wrv(wr);
 
-  //helper<writable>::vtable<helper<readable>::vtable<>> built;
-
-
   wrv.write("hello\n", 7);
 
   char buf[5];
   wrv.read(buf, sizeof(buf));
   printf("done\n");
 
-
-
-  // std::cout << "wrv._obj: " << &wrv._obj << std::endl; 
-
-  
   return 0;
 }

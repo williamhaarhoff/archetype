@@ -2,7 +2,7 @@
 #include <iostream>
 #include <cstring>
 #include <string>
-#include <vector>
+
 
 // Define our archetypes
 ARCHETYPE_DEFINE(writable, (
@@ -147,28 +147,33 @@ int main()
   ComposedReadWriter composed_read_writer;
   NativeReadWriter native_read_writer;
   InherritedReadWriter inherrited_read_writer;
-  AbstractWriter * base_ptr = new DerivedReadWriter();
+  DerivedReadWriter derived_read_writer;
+  AbstractWriter * base_ptr = static_cast<AbstractWriter*>(&derived_read_writer);
 
   // Creating standard views
-  // std::vector<writable::view> views(4);
-  // views[0] = writable::view(composed_read_writer);
-  // views[1] = writable::view(native_read_writer);
-  // views[2] = writable::view(inherrited_read_writer);
-  // views[3] = writable::view(*base_ptr);
+  writable::view views[] = {
+    writable::view(composed_read_writer),
+    writable::view(native_read_writer),
+    writable::view(inherrited_read_writer),
+    writable::view(*base_ptr)
+  };
 
-  // for (auto & view : views) {
-  //   view.write("hello\r\n", 7);
-  // }
-
-  writable::view view0(composed_read_writer);
-  view0.write("testing\n", 8);
-
-  readwritable::view view1(native_read_writer);
-  view1.write("testing2\n", 9);
+  for (auto & view : views) {
+    view.write("hello\n", 7);
+  }
 
   // Creating views with pointer syntax
-  // writable::ptr<> view_ptr(native_read_writer);
-  // view_ptr->write("hello from view_ptr\r\n", 21);
+  readwritable::ptr<> wp_nrw(native_read_writer);
+  wp_nrw->write("hello, using pointer syntax\n", 28);
+  char buf[5];
+  wp_nrw->write("enter 5 chars:\n", 14);
+  wp_nrw->read(buf, sizeof(buf));
+
+  wp_nrw->write("read: ", 7);
+  wp_nrw->write(buf, 5);
+
+  delete base_ptr;
+
 
   return 0;
 }

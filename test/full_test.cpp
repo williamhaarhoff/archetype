@@ -91,8 +91,7 @@ TEST_CASE("ARCHETYPE_DEFINE") {
     CHECK(basic_void::check<arg_func>::value == false);
     CHECK(basic_void::check<arg_func_double>::value == false);
 
-    basic_void::view bvv;
-    bvv.bind(naf);
+    basic_void::view bvv(naf);
     bvv.func0();
   }
 
@@ -102,8 +101,7 @@ TEST_CASE("ARCHETYPE_DEFINE") {
     CHECK(basic_int::check<arg_func>::value == true);
     CHECK(basic_int::check<arg_func_double>::value == false);
 
-    basic_int::view biv;
-    biv.bind(af);
+    basic_int::view biv(af);
     biv.func0(5);
   }
 
@@ -113,8 +111,7 @@ TEST_CASE("ARCHETYPE_DEFINE") {
     CHECK(basic_double::check<arg_func>::value == false);
     CHECK(basic_double::check<arg_func_double>::value == true);
 
-    basic_double::view bdv;
-    bdv.bind(afd);
+    basic_double::view bdv(afd);
     bdv.func0(5.4);
   }
 
@@ -124,8 +121,7 @@ TEST_CASE("ARCHETYPE_DEFINE") {
     CHECK(basic_multifunc::check<multifunc>::value == true);
     CHECK(basic_multifunc::check<overloaded_func>::value == false);
 
-    basic_multifunc::view bmfv;
-    bmfv.bind(m);
+    basic_multifunc::view bmfv(m);
     bmfv.func0(5);
     bmfv.func1(5.4);
   }
@@ -136,8 +132,7 @@ TEST_CASE("ARCHETYPE_DEFINE") {
     CHECK(basic_overload::check<multifunc>::value == false);
     CHECK(basic_overload::check<overloaded_func>::value == true);
 
-    basic_overload::view bov;
-    bov.bind(of);
+    basic_overload::view bov(of);
     bov.func0(5);
     bov.func0(5.4);
   }
@@ -157,11 +152,6 @@ TEST_CASE("ARCHETYPE_DEFINE") {
     CHECK(satisfies_ab_manual::check<ABD>::value == true);
     CHECK(satisfies_ab_manual::check<ACD>::value == false);
     CHECK(satisfies_ab_manual::check<BCD>::value == false);
-
-    basic_overload::view bov;
-    bov.bind(of);
-    bov.func0(5);
-    bov.func0(5.4);
   }
 }
 
