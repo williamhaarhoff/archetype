@@ -1,5 +1,10 @@
 
-The basic idea:
+# How Archetype Works:
+
+This document is meant to clearly show the principles on which archetype works without you having to decipher the macro heavy archetype.h file. The intention is to show how the principles have been combined, and provide a rationale for why I have implemented archetype this way. 
+
+Underneath the hood Archetype uses manual vtables to acheive type erasure and run time polymorphism. This is not dissimilar from how virtual functions in traditional inheritance work. Vtables and surrounding infrastructure require a lot of boiler plate. The point of Archetype is to automate manual vtable generation, in a modular/composable way.
+
 
 ```cpp
 struct writable
