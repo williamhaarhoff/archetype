@@ -150,23 +150,25 @@ int main()
   AbstractWriter * base_ptr = new DerivedReadWriter();
 
   // Creating standard views
-  std::vector<writable::view> views(4);
-  views[0].bind(composed_read_writer);
-  views[1].bind(native_read_writer);
-  views[2].bind(inherrited_read_writer);
-  views[3].bind(*base_ptr);
+  // std::vector<writable::view> views(4);
+  // views[0] = writable::view(composed_read_writer);
+  // views[1] = writable::view(native_read_writer);
+  // views[2] = writable::view(inherrited_read_writer);
+  // views[3] = writable::view(*base_ptr);
 
-  for (auto & view : views) {
-    view.write("hello\r\n", 7);
-  }
+  // for (auto & view : views) {
+  //   view.write("hello\r\n", 7);
+  // }
+
+  writable::view view0(composed_read_writer);
+  view0.write("testing\n", 8);
+
+  readwritable::view view1(native_read_writer);
+  view1.write("testing2\n", 9);
 
   // Creating views with pointer syntax
-  writable::ptr<> view_ptr; 
-  view_ptr.bind(native_read_writer);
-  view_ptr->write("hello from view_ptr\r\n", 21);
+  // writable::ptr<> view_ptr(native_read_writer);
+  // view_ptr->write("hello from view_ptr\r\n", 21);
 
-
-  delete base_ptr;
   return 0;
-
 }

@@ -111,47 +111,49 @@ namespace archetype {
 #define ARCHETYPE_COMPOSE(NAME, ...)                                           \
   struct NAME {                                                                \
     NAME() = delete;                                                           \
+    ~NAME() = delete;                                                          \
+    NAME & operator=(const NAME &) = delete;                                   \
                                                                                \
-  public:                                                                      \
     friend class archetype::helper<NAME>;                                      \
-    template <template <typename> class Interface> class ptr;                  \
                                                                                \
+    /* SFINAE based type checking against requirements */                      \
     template <typename T>                                                      \
     struct check                                                               \
         : std::integral_constant<bool, ARCH_PP_EXPAND_COMPONENT_REQUIREMENTS(  \
                                            __VA_ARGS__)> {};                   \
                                                                                \
-  protected:                                                                   \
-    template <typename B = archetype::Base>                                    \
-    class component                                                            \
-        : public ARCH_PP_EXPAND_COMPONENT_INHERITANCE(__VA_ARGS__) {           \
-    public:                                                                    \
-      template <template <typename> class Interface> friend class ptr;         \
+    protected:                                                                 \
+    template<typename BaseVTable = archetype::vtable_base>                     \
+    struct vtable : public ARCH_PP_EXPAND_VTABLE_INHERITANCE(__VA_ARGS__)      \
+    {                                                                          \
+      using this_base = ARCH_PP_EXPAND_VTABLE_INHERITANCE(__VA_ARGS__);        \
+      template<typename T>                                                     \
+      void bind()                                                              \
+      {                                                                        \
+        this->this_base::template bind<T>();                                   \
+      }                                                                        \
+                                                                               \
+      template<typename T>                                                     \
+      static vtable * make_vtable()                                            \
+      {                                                                        \
+        static vtable<BaseVTable> vtablet;                                     \
+        vtablet.bind<T>();                                                     \
+                                                                               \
+        return &vtablet;                                                       \
+      }                                                                        \
     };                                                                         \
                                                                                \
-    /* Public view, exposes component interface*/                              \
-  public:                                                                      \
-    class view : public component<> {                                          \
-    public:                                                                    \
-      using component<>::bind;                                                 \
+    template<typename BaseViewLayer = archetype::view_base<vtable<>>>          \
+    struct view_layer: public ARCH_PP_EXPAND_VIEW_LAYER_INHERITANCE(__VA_ARGS__)\
+    {                                                                          \
+      protected:                                                               \
+      using BaseViewLayer::_obj;                                               \
+      using BaseViewLayer::_vtbl;                                              \
     };                                                                         \
                                                                                \
-    /*Convenience class, for ptr syntax */                                     \
-    template <template <typename> class Interface = archetype::identity>       \
-    class ptr {                                                                \
-    private:                                                                   \
-      using T = Interface<component<>>;                                        \
-      T impl;                                                                  \
-                                                                               \
+    /* Public view, and ptr structures */                                      \
     public:                                                                    \
-      template <typename CONCEPT> void bind(CONCEPT &ref) { impl.bind(ref); }  \
-                                                                               \
-      T &operator*() { return &impl; }                                         \
-      const T &operator*() const { return &impl; }                             \
-                                                                               \
-      T *operator->() { return &impl; }                                        \
-      const T *operator->() const { return &impl; }                            \
-    };                                                                         \
+    ARCH_PP_COMMON_BLOCK                                                       \
   };
 
 //-- High level internal expansions
@@ -204,12 +206,19 @@ namespace archetype {
 #define ARCH_PP_EXPAND_REQUIREMENTS_IMPL(...)                                  \
   ARCH_PP_FOR_EACH_SEP(ARCH_PP_REQUIREMENT, __VA_ARGS__)
 
-#define ARCH_PP_EXPAND_COMPONENT_INHERITANCE(...)                              \
-  ARCH_PP_EXPAND_COMPONENT_INHERITANCE_IMPL(                                   \
-      ARCH_PP_FOR_EACH_SEP_CALL(ARCH_PP_APPLY_HELPER, __VA_ARGS__))
+#define ARCH_PP_EXPAND_VTABLE_INHERITANCE(...)                              \
+  ARCH_PP_EXPAND_VTABLE_INHERITANCE_IMPL(                                   \
+      ARCH_PP_FOR_EACH_SEP_CALL(ARCH_PP_APPLY_VTABLE_HELPER, __VA_ARGS__))
 
-#define ARCH_PP_EXPAND_COMPONENT_INHERITANCE_IMPL(...)                         \
-  ARCH_PP_TEMPLATE_CHAIN(__VA_ARGS__ ARCH_PP_COMMA_IF_ARGS(__VA_ARGS__) B)
+#define ARCH_PP_EXPAND_VTABLE_INHERITANCE_IMPL(...)                         \
+  ARCH_PP_TEMPLATE_CHAIN(__VA_ARGS__ ARCH_PP_COMMA_IF_ARGS(__VA_ARGS__) BaseVTable)
+
+#define ARCH_PP_EXPAND_VIEW_LAYER_INHERITANCE(...)                              \
+  ARCH_PP_EXPAND_VIEW_LAYER_INHERITANCE_IMPL(                                   \
+      ARCH_PP_FOR_EACH_SEP_CALL(ARCH_PP_APPLY_VIEW_LAYER_HELPER, __VA_ARGS__))
+
+#define ARCH_PP_EXPAND_VIEW_LAYER_INHERITANCE_IMPL(...)                         \
+  ARCH_PP_TEMPLATE_CHAIN(__VA_ARGS__ ARCH_PP_COMMA_IF_ARGS(__VA_ARGS__) BaseViewLayer)
 
 #define ARCH_PP_EXPAND_COMPONENT_REQUIREMENTS(...)                             \
   ARCH_PP_FOR_EACH_SEPX_CALL(ARCH_PP_APPEND_CHECK, &&, __VA_ARGS__)
@@ -218,7 +227,7 @@ namespace archetype {
 #define ARCH_PP_METHOD(ARCH_PP_UNIQUE_NAME, ret, name, ...)                    \
 public:                                                                        \
   ret name(TYPED_ARGS(M_NARGS(__VA_ARGS__), __VA_ARGS__)) {                    \
-    return _##ARCH_PP_UNIQUE_NAME##_stub(_obj ARCH_PP_COMMA_IF_ARGS(           \
+    return _vtbl->_##ARCH_PP_UNIQUE_NAME##_stub(_obj ARCH_PP_COMMA_IF_ARGS(           \
         __VA_ARGS__) ARCH_PP_ARG_NAMES(M_NARGS(__VA_ARGS__), __VA_ARGS__));    \
   }
 
@@ -243,7 +252,8 @@ public:                                                                        \
       &T::name)
 
 #define ARCH_PP_APPEND_CHECK(x) x::check<T>::value
-#define ARCH_PP_APPLY_HELPER(x) archetype::helper<x>::get
+#define ARCH_PP_APPLY_VTABLE_HELPER(x) archetype::helper<x>::vtable
+#define ARCH_PP_APPLY_VIEW_LAYER_HELPER(x) archetype::helper<x>::view_layer
 
 //-- Foundational macro utilities
 #define ARCH_PP_EXPAND(x) x
@@ -466,7 +476,5 @@ public:                                                                        \
 
 #define ARCH_PP_ARG_NAMES(count, ...)                                          \
   ARCH_PP_CAT(ARCH_PP_ARG_NAMES_, count)(__VA_ARGS__)
-
-ARCHETYPE_DEFINE(writable, (ARCHETYPE_METHOD(int, write, const char *, int)))
 
 #endif //__ARCHETYPE_H__
