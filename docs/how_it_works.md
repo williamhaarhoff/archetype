@@ -32,7 +32,7 @@ mytable.func_b(5.f);  //returns 10.3;
 ```
 
 ### The object facing vtable
-In Archetype the goal is binding objects/classes, which means calling member functions, not free functions. With free functions, we don't care if they are a static function of a class, or just a regular function because they have a fixed size, which means we can store the function pointer without knowing "where it comes from", and can keep the vtable independent from the "type" of function. The problem with member function pointers is that their size is type dependent, and to be able to store and call them from our vtable, our vtable would have to depend on the class we are binding to.
+In Archetype the goal is binding objects/classes, which means calling member functions, not regular functions. The problem with member function pointers is that they are type dependent, and to be able to store and call them from our vtable, our vtable would have to depend on the class we are binding to.
 
 Lets say we want a vtable that can call objects of the following type:
 ```cpp
@@ -104,7 +104,7 @@ myview.func_a(5);
 myview.func_b(3.2);
 ```
 
-This is a little cleaner. We have one vtable instance per bound type. And we have one view instance per object that we bind to. By keeping the vtable and view separate we keep memory usage lower, and have improved cache locality for the function pointers (as opposed to combined view and vtable implementations). 
+This is a little cleaner. We have one vtable instance per bound type. And we have one view instance per object that we bind to. By keeping the vtable and view separate we keep memory usage lower that combined vtable/view implementations. 
 
 To ensure we are only creating on vtable per type, we can make use of a static vtable variable within a templated function. Every time we call `make_vtable<A>()` we are using a pointer to the `A` `vtable`.
 
@@ -181,8 +181,8 @@ struct readwritable
 {
   struct view
   {
-    void * obj;                                  // from ?
-    vtable * vtbl;                               // from ?
+    void * obj;                                  // common to both
+    vtable * vtbl;                               // common to both
     int write(const char * arg0, int arg1) { 
       return vtbl->write(obj, arg0, arg1);       // from writable
     }
@@ -194,7 +194,7 @@ struct readwritable
 };
 ```
 
-In Archetype I did this by orthogonalising the structures, and then composing them through inheritance of orthogonal parts. The orthogonal parts come from each of the existing archetypes, while the common parts can come from a common base. `readable` annd `writable` views define the `read()` and `write()` functions respectively. But they will need to share a common vtable, and void object pointer. We will see how to define this vtable later. Both the object pointer and the vtable pointer get placed in the common base. 
+In Archetype I did this by orthogonalising the structures, and then composing them through inheritance of orthogonal parts. The orthogonal parts come from each of the existing archetypes, while the common parts can come from a common base. `readable` and `writable` views define the `read()` and `write()` functions respectively. But they will need to share a common vtable, and void object pointer. We will see how to define this vtable later. Both the object pointer and the vtable pointer get placed in the common base. 
 
 ```cpp
 template<typename VTableType>
@@ -205,7 +205,7 @@ struct view_base
 };
 ```
 
-The readable and writable views are orthogonalised into layers which can be composed in an inheritance chain. For now you can ignore the default assignment of `BaseViewLayer = view_base<vtable<>>`, `vtable<>` will be discussed in a later section. 
+The readable and writable views are orthogonalised into layers which can be composed in an inheritance chain. For now you can ignore the default assignment of `BaseViewLayer = view_base<vtable<>>`, `vtable<>` will be discussed in the composable vtable section. 
 ```cpp
 struct writable
 {
@@ -365,6 +365,8 @@ struct readwritable
   ...
 };
 ```
+
+
 
 ### The restricted API
 
