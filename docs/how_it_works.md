@@ -1,12 +1,12 @@
 
 # How Archetype Works:
 
-This document is meant to clearly show the principles on which archetype works without you having to decipher the macro heavy archetype.h file. The intention is to show how the principles have been combined, and provide a rationale for why I have implemented archetype this way. 
-
-Underneath the hood `Archetype` uses manual vtables to acheive type erasure and run time polymorphism. This is not dissimilar from how virtual functions in traditional inheritance work. Vtables and surrounding infrastructure require a lot of boiler plate. The point of `Archetype` is to automate manual `vtable` generation, in a modular/composable way.
+Because Archetype is a macro library, it can be difficult to understand how the macros expand, the intent, and the overall architecture. This document reflects the thought process, concerns, principles, used in creating archetype. Without delving into any macro expansion / macro techniques. This document is a mix between tutorial and explanation around the development of Archetype.
+ 
+Underneath the hood `Archetype` uses manual vtables to acheive type erasure and run time polymorphism. This is not dissimilar from how virtual functions in traditional inheritance work. Vtables and surrounding infrastructure require a lot of boiler plate. The point of `Archetype` is to automate manual `vtable` generation, in a modular/composable way, while providing a simple user facing interface. 
 
 ### The basic vtable 
-A `vtable` is a structure containing free function pointers (non member function pointers). For example, this is a `vtable` structure containing function pointers for `func_a` and `func_b`.
+A `vtable` is a structure containing free function pointers (non member function pointers). For example, this is a `vtable` structure containing function pointers for `func_a` and `func_b` as member variables.
 
 ```cpp
 struct vtable
@@ -18,33 +18,34 @@ struct vtable
 We can now assign any function that matches this signature to the vtable. For example:
 
 ```cpp
-int func_a(int a) { return a + 5; }
-float func_b(float b) { return b + 5.3; }
+int do_a(int a) { return a + 5; }
+float do_b(float b) { return b + 5.3; }
 
 vtable mytable;
-mytable.func_a = &func_a;
-mytable.func_b = &func_b;
+mytable.func_a = &do_a;
+mytable.func_b = &do_b;
 ```
 we can now call these functions through the vtable:
 ```cpp
 mytable.func_a(5);    //returns 10;
 mytable.func_b(5.f);  //returns 10.3;
 ```
+
 ### The object facing vtable
-In Archetype the goal is binding objects/classes, not free functions. Member function pointers (non static) are not free functions. They have to point to both the correct function, and the object instance, which mean they don't have the size of a free function pointer.
+In Archetype the goal is binding objects/classes, which means calling member functions, not free functions. With free functions, we don't care if they are a static function of a class, or just a regular function because they have a fixed size, which means we can store the function pointer without knowing "where it comes from", and can keep the vtable independent from the "type" of function. The problem with member function pointers is that their size is type dependent, and to be able to store and call them from our vtable, our vtable would have to depend on the class we are binding to.
 
 Lets say we want a vtable that can call objects of the following type:
 ```cpp
 struct A
 {
-  int func_a(int a) { return a + internal_int++; }
-  float func_b(float b) { return b + (internal_float += 1.3f); }
+  int do_a(int a) { return a + internal_int++; }
+  float do_b(float b) { return b + (internal_float += 1.3f); }
   int internal_int = 5;
   int internal_float = 5.3;
 };
 ```
 
-We can get around this by storing free functions that can be called with an object pointer. For example our vtable becomes:
+We can get around requiring member function pointers by storing free functions that can be called with an object pointer. For example our vtable becomes:
 
 ```cpp
 struct vtable
@@ -57,14 +58,14 @@ We can then assign this vtable to call an object of type `A's` functions.
 ```cpp
 A obj;
 vtable vtbl;
-vtbl.func_a = [](A * ptr, int a) { return ptr->func_a(a); };
-vtbl.func_b = [](A * ptr, float b) { return ptr->func_b(b); };
+vtbl.func_a = [](A * ptr, int a) { return ptr->do_a(a); };
+vtbl.func_b = [](A * ptr, float b) { return ptr->do_b(b); };
 
 vtbl.func_a(obj, 5);    // call func_a on obj
 vtbl.func_b(obj, 6.4);  // call func_b on obj
 ```
 
-This implementation is not very generic. As our vtable depends on type A. We can make the vtable type agnostic by passing in the object as a void pointer instead. We can push the type specific handling into the lambda. 
+This implementation is not very generic. As our vtable still depends on type A. We can make the vtable type agnostic by passing in the object as a void pointer instead. We can push the type specific handling into the lambda. 
 
 ```cpp
 struct vtable
@@ -81,8 +82,7 @@ vtbl.func_a(static_cast<void*>(obj), 5);
 ```
 
 ### The view
-So far the vtable itself has given us a type erased way to call functions on arbitrary types, provided we can assign lambdas to out vtable function pointers. However, its still very awkward to setup and call. The `view` is an object that carries around the object `void *` and can pass this into the vtable functions.
-
+So far the vtable itself has given us a type erased way to call functions on arbitrary types, provided we can assign lambdas to out vtable function pointers. However, its still very awkward, and manul to setup and call. The `view` is an object that carries around the object `void *` and can pass this into the vtable functions.
 ```cpp
 struct view
 {
@@ -104,7 +104,7 @@ myview.func_a(5);
 myview.func_b(3.2);
 ```
 
-This is a little cleaner. We have one vtable instance per bound type. And we have one view instance per object that we bind to. By keeping the vtable and view separate as separate objects we keep memory usage lower, and have improved cache locality for the function pointers. 
+This is a little cleaner. We have one vtable instance per bound type. And we have one view instance per object that we bind to. By keeping the vtable and view separate we keep memory usage lower, and have improved cache locality for the function pointers (as opposed to combined view and vtable implementations). 
 
 To ensure we are only creating on vtable per type, we can make use of a static vtable variable within a templated function. Every time we call `make_vtable<A>()` we are using a pointer to the `A` `vtable`.
 
@@ -120,7 +120,7 @@ static vtable * make_vtable()
   return &vtablet;
 }
 ```
-To handle function overloading we need to make sure that the `vtable` uses unique names for its function pointers. We can use normal function overloading in the view to resolve the correct function call.
+To handle function overloading we need to make sure that the `vtable` uses unique names for its function pointers. We can use normal function overloading in the view to resolve the correct function call. In Archetype I've done this by using the `__LINE__` and `__COUNTER__` macros to generate unique names.
 
 ### The Archetype
 Taking inspiration from the way that C++20 concepts can be defined and composed together, I wanted to do something similar. The idea being that you could define interface specifications, and then compose these together. Below is the rough idea for a structure that defines the `writable` "concept". I ended up calling these containing structures Archetypes.  
@@ -194,7 +194,7 @@ struct readwritable
 };
 ```
 
-In Archetype did this by orthogonalising the structures, and then composing them through inheritance of orthogonal parts. The orthogonal parts come from each of the existing archetypes, while the common parts can come from a common base. `readable` annd `writable` views define the `read()` and `write()` functions respectively. But they will need to share a common vtable, and void object pointer. We will see how to define this vtable later. Both the object pointer and the vtable pointer get placed in the common base. 
+In Archetype I did this by orthogonalising the structures, and then composing them through inheritance of orthogonal parts. The orthogonal parts come from each of the existing archetypes, while the common parts can come from a common base. `readable` annd `writable` views define the `read()` and `write()` functions respectively. But they will need to share a common vtable, and void object pointer. We will see how to define this vtable later. Both the object pointer and the vtable pointer get placed in the common base. 
 
 ```cpp
 template<typename VTableType>
@@ -205,7 +205,7 @@ struct view_base
 };
 ```
 
-The readable and writable views are orthogonalised into layers which can bve composed in an inheritance chain. For now you can ignore the default assignment of `BaseViewLayer = view_base<vtable<>>`, `vtable<>` will be discussed in a later section. 
+The readable and writable views are orthogonalised into layers which can be composed in an inheritance chain. For now you can ignore the default assignment of `BaseViewLayer = view_base<vtable<>>`, `vtable<>` will be discussed in a later section. 
 ```cpp
 struct writable
 {
@@ -260,7 +260,7 @@ readwritable::view_layer<> readable_view;
 While we have ended up with something more complex and verbose we are making progress in the right direction. The structures generated are more modular, and homogenous, which later becomes important for automating their generation and composition.
 
 
-#### The composable vtable
+### The composable vtable
 The composable vtable follows the same principals as the composable view. All the common parts go in the base, all the orthogonal parts go in the layers.
 A first approach would look something like this:
 
@@ -302,7 +302,7 @@ readable::vtable<> rvtl;
 readwritable::vtable<> rvtl; 
 ```
 
-The problem we have now, is that while we can create function pointers for each vtable, we still need a way to assign them.Becase we are automating this, we need an orthogonal way to do this. Because each derived class is aware of its base type, it can call functions from the base. My approach here is that every layer has the same function, which hides the ones from the layer below. However, each layer still knows how to call the function in the layer directly below itself. Lets do this by adding a `bind()` function to every layer. 
+The problem we have now, is that while we can create function pointers for each vtable, we still need a way to assign them. Becase we are automating this, we need an orthogonal way to do this. Because each derived class is aware of its base type, it can call functions from the base. My approach here is that every layer has the same function, which hides the ones from the layer below. However, each layer still knows how to call the function in the layer directly below itself. Which means we can create a function call chain starting at the derived, and chaining down to the base. Lets do this by adding a `bind()` function to every layer. 
 
 ```cpp
 struct vtable_base 
@@ -366,185 +366,16 @@ struct readwritable
 };
 ```
 
+### The restricted API
 
+So far this implementation has been unrestricted, meaning its easy for users to accidentally reach into the implementations and assign/modify variables. To keep the library intuitive and safe I wanted to make a public API, and restrict access to non API structs or functions. 
 
+- Archetypes shouldn't be instantiable. This means deleting constructors.
+- The vtable shouldn't be called or used directly outside the library. This means making it a protected type within the archetype, but allowing friends within the library to have access. 
 
-
-
-
-
-
-
-```cpp
-struct writable
-{
-  template<typename BaseVTable = VTableBase>
-  struct vtable : public BaseVTable
-  {
-    int (*write)(void * obj, const char *, int);
-    
-    template<typename T>
-    void bind()
-    {
-      this->BaseVTable::template bind<T>();
-
-      write = [](void * obj, const char * arg0, int arg1) -> int {
-        return static_cast<T*>(obj)->write(arg0, arg1); 
-      };
-    }
-
-    public:
-    template<typename T>
-    static vtable * make_vtable()
-    {
-      static vtable<BaseVTable> vtablet;
-      vtablet.bind<T>();
-
-      return &vtablet;
-    }
-  };
-
-
-  template<typename BaseViewLayer = ViewBase<vtable<>>>
-  struct ViewLayer : public BaseViewLayer
-  {
-    using BaseViewLayer::_obj;
-    using BaseViewLayer::_vtbl;
-
-    int write(const char * arg0, int arg1) { return _vtbl->write(_obj, arg0, arg1); }
-  };
-
-  struct view : public ViewLayer<> {};
-
-  template<typename T>
-  static view make_view(T & t)
-  {
-    view v;
-    v._obj = static_cast<void *>(&t);
-    v._vtbl = vtable<>::make_vtable<T>();
-    return v;
-  }
-};
-
-struct readable
-{
-  template<typename BaseVTable = VTableBase>
-  struct vtable : public BaseVTable
-  {
-    int (*read)(void * obj, char *, int);
-    
-    template<typename T>
-    void bind()
-    {
-      this->BaseVTable::template bind<T>();
-
-      read = [](void * obj, char * arg0, int arg1) -> int {
-        return static_cast<T*>(obj)->read(arg0, arg1); 
-      };
-    }
-
-    public:
-    template<typename T>
-    static vtable * make_vtable()
-    {
-      static vtable<BaseVTable> vtablet;
-      vtablet.bind<T>();
-
-      return &vtablet;
-    }
-  };
-
-
-  template<typename BaseViewLayer = ViewBase<vtable<>>>
-  struct ViewLayer : public BaseViewLayer
-  {
-    using BaseViewLayer::_obj;
-    using BaseViewLayer::_vtbl;
-
-    int read(char * arg0, int arg1) { return _vtbl->read(_obj, arg0, arg1); }
-  };
-
-  struct view : public ViewLayer<> {};
-
-  template<typename T>
-  static view make_view(T & t)
-  {
-    view v;
-    v._obj = static_cast<void *>(&t);
-    v._vtbl = vtable<>::make_vtable<T>();
-    return v;
-  }
-};
-
-
-struct readwritable
-{
-  template<typename BaseVTable = VTableBase>
-  struct vtable : public writable::vtable<readable::vtable<BaseVTable>>
-  {
-    using this_base = writable::vtable<readable::vtable<BaseVTable>>;
-    
-    template<typename T>
-    void bind()
-    {
-      this->this_base::template bind<T>();
-    }
-
-    public:
-    template<typename T>
-    static vtable * make_vtable()
-    {
-      static vtable<BaseVTable> vtablet;
-      vtablet.bind<T>();
-
-      return &vtablet;
-    }
-  };
-
-
-  template<typename BaseViewLayer = ViewBase<vtable<>>>
-  struct ViewLayer : public writable::ViewLayer<readable::ViewLayer<BaseViewLayer>>
-  {
-    using BaseViewLayer::_obj;
-    using BaseViewLayer::_vtbl;
-  };
-
-  struct view : public ViewLayer<> {};
-
-  template<typename T>
-  static view make_view(T & t)
-  {
-    view v;
-    v._obj = static_cast<void *>(&t);
-    v._vtbl = vtable<>::make_vtable<T>();
-    return v;
-  }
-};
-```
-
-Adding access control, to only expose part of the API
+One of the interesting patterns was allowing the library to perform the inheritance chaining of view layers and vtables. I did this by allowing the archetypes to friend a templated helper. The helper can then publically expose the view_layer, and vtable types for use in inheritance chaining. 
 
 ```cpp
-struct vtable_base 
-{
-  template<typename T>
-  static vtable_base * make_vtable() {
-    static vtable_base vtablet;
-    return &vtablet;
-  }
-
-  template <typename T>
-  void bind() {}
-};
-
-template<typename VTableType>
-class view_base
-{
-  protected:
-  void * _obj;
-  VTableType * _vtbl;
-};
-
 template <class C> struct 
 helper 
 {
@@ -554,188 +385,224 @@ helper
   template<typename T = view_base<vtable<>>>
   using view_layer = typename C::template view_layer<T>;
 };
+```
 
-struct writable
-{
-  public:
+An inheritance chain example:
+
+```cpp
+using this_base = helper<writable>::vtable<helper<readable>::vtable<BaseVTable>>;
+```
+
+### The full expansion
+For reference, I'm including the full expansion of the `writable`, `readable`, `readwritable` example as by the library with:
+
+```
+ARCHETYPE_DEFINE(writable, (ARCHETYPE_METHOD(int, write, const char *, int)))
+ARCHETYPE_DEFINE(readable, (ARCHETYPE_METHOD(int, read, char *, int)))
+ARCHETYPE_COMPOSE(readwritable, writable, readable)
+```
+
+```cpp
+namespace archetype {
+
+struct vtable_base {
+  template <typename T> static vtable_base *make_vtable() {
+    static vtable_base vtablet;
+    return &vtablet;
+  }
+
+  template <typename T> void bind() {}
+};
+
+template <typename VTableType> class view_base {
+protected:
+  void *_obj;
+  VTableType *_vtbl;
+};
+
+template <typename...> using void_t = void;
+
+template <typename Base> struct identity : public Base {
+  using Base::Base;
+};
+
+template <class Archetype> struct helper {
+  template <typename T = vtable_base>
+  using vtable = typename Archetype::template vtable<T>;
+
+  template <typename T = view_base<vtable<>>>
+  using view_layer = typename Archetype::template view_layer<T>;
+};
+} // namespace archetype
+
+
+struct writable {
   writable() = delete;
   ~writable() = delete;
-  writable & operator=(const writable &) = delete;
-  
-  friend class helper<writable>;
+  writable &operator=(const writable &) = delete;
+  friend struct archetype::helper<writable>;
+  template <typename, typename = void> struct check : std::false_type {};
+  template <typename T>
+  struct check<T, archetype::void_t<decltype(
+    static_cast<int (T::*)(const char *arg0, int arg1)>(&T::write))>> : std::true_type {};
 
-  protected:
-  template<typename BaseVTable = vtable_base>
+protected:
+  template <typename BaseVTable = archetype::vtable_base>
   struct vtable : public BaseVTable {
-    int (*write)(void * obj, const char *, int);
-    
-    template<typename T>
-    void bind()
-    {
+    int (*_write_483_0_stub)(void *obj, const char *, int);
+    template <typename T> void bind() {
+      static_assert(writable::check<T>::value,
+                    "T must satisfy writable::check");
       this->BaseVTable::template bind<T>();
-
-      write = [](void * obj, const char * arg0, int arg1) -> int {
-        return static_cast<T*>(obj)->write(arg0, arg1); 
+      _write_483_0_stub = [](void *obj, const char *arg0, int arg1) -> int {
+        return static_cast<T *>(obj)->write(arg0, arg1);
       };
     }
-
-    public:
-    template<typename T>
-    static vtable * make_vtable()
-    {
+    template <typename T> static vtable *make_vtable() {
       static vtable<BaseVTable> vtablet;
       vtablet.bind<T>();
-
       return &vtablet;
     }
   };
+  template <typename BaseViewLayer = archetype::view_base<vtable<>>>
+  struct view_layer : public BaseViewLayer {
+  public:
+    int write(const char *arg0, int arg1) {
+      return _vtbl->_write_483_0_stub(_obj, arg0, arg1);
+    }
 
-
-  template<typename Baseview_layer = view_base<vtable<>>>
-  struct view_layer : public Baseview_layer
-  {
-    protected:
-    using Baseview_layer::_obj;
-    using Baseview_layer::_vtbl;
-
-    public:
-    int write(const char * arg0, int arg1) { return _vtbl->write(_obj, arg0, arg1); }
+  protected:
+    using BaseViewLayer::_obj;
+    using BaseViewLayer::_vtbl;
   };
 
-  public:
-  struct view : public view_layer<> 
-  {
-    template<typename T>
-    view(T & t)
-    {
+public:
+  struct view : public view_layer<> {
+    template <typename T> view(T &t) {
       this->_obj = static_cast<void *>(&t);
       this->_vtbl = vtable<>::make_vtable<T>();
     }
   };
+  template <template <typename> class API = archetype::identity> struct ptr {
+    template <typename T> ptr(T &t) : _view(t) {}
+    API<view> &operator*() { return &_view; }
+    const API<view> &operator*() const { return &_view; }
+    API<view> *operator->() { return &_view; }
+    const API<view> *operator->() const { return &_view; }
+
+  protected:
+    API<view> _view;
+  };
 };
-
-
-struct readable
-{
-  public:
+struct readable {
   readable() = delete;
   ~readable() = delete;
-  readable & operator=(const readable &) = delete;
-  
-  friend class helper<readable>;
+  readable &operator=(const readable &) = delete;
+  friend struct archetype::helper<readable>;
+  template <typename, typename = void> struct check : std::false_type {};
+  template <typename T>
+  struct check<
+      T, archetype::void_t<
+             decltype(static_cast<int (T::*)(char *arg0, int arg1)>(&T::read))>>
+      : std::true_type {};
 
-  protected:
-  template<typename BaseVTable = vtable_base>
+protected:
+  template <typename BaseVTable = archetype::vtable_base>
   struct vtable : public BaseVTable {
-    int (*read)(void * obj, char *, int);
-    
-    template<typename T>
-    void bind()
-    {
+    int (*_read_484_1_stub)(void *obj, char *, int);
+    template <typename T> void bind() {
+      static_assert(readable::check<T>::value,
+                    "T must satisfy readable::check");
       this->BaseVTable::template bind<T>();
-
-      read = [](void * obj, char * arg0, int arg1) -> int {
-        return static_cast<T*>(obj)->read(arg0, arg1); 
+      _read_484_1_stub = [](void *obj, char *arg0, int arg1) -> int {
+        return static_cast<T *>(obj)->read(arg0, arg1);
       };
     }
-
-    public:
-    template<typename T>
-    static vtable * make_vtable()
-    {
+    template <typename T> static vtable *make_vtable() {
       static vtable<BaseVTable> vtablet;
       vtablet.bind<T>();
-
       return &vtablet;
     }
   };
+  template <typename BaseViewLayer = archetype::view_base<vtable<>>>
+  struct view_layer : public BaseViewLayer {
+  public:
+    int read(char *arg0, int arg1) {
+      return _vtbl->_read_484_1_stub(_obj, arg0, arg1);
+    }
 
-
-  template<typename Baseview_layer = view_base<vtable<>>>
-  struct view_layer : public Baseview_layer
-  {
-    protected:
-    using Baseview_layer::_obj;
-    using Baseview_layer::_vtbl;
-
-    public:
-    int read(char * arg0, int arg1) { return _vtbl->read(_obj, arg0, arg1); }
+  protected:
+    using BaseViewLayer::_obj;
+    using BaseViewLayer::_vtbl;
   };
 
-  public:
-  struct view : public view_layer<> 
-  {
-    template<typename T>
-    view(T & t)
-    {
+public:
+  struct view : public view_layer<> {
+    template <typename T> view(T &t) {
       this->_obj = static_cast<void *>(&t);
       this->_vtbl = vtable<>::make_vtable<T>();
     }
   };
-};
-
-
-struct readwritable
-{
-  public:
-  readwritable() = delete;
-  ~readwritable() = delete;
-  readwritable & operator=(const readwritable &) = delete;
-  
-  friend class helper<readwritable>;
+  template <template <typename> class API = archetype::identity> struct ptr {
+    template <typename T> ptr(T &t) : _view(t) {}
+    API<view> &operator*() { return &_view; }
+    const API<view> &operator*() const { return &_view; }
+    API<view> *operator->() { return &_view; }
+    const API<view> *operator->() const { return &_view; }
 
   protected:
-  template<typename BaseVTable = vtable_base>
-  struct vtable : public helper<writable>::vtable<helper<readable>::vtable<BaseVTable>>
-  {
-    using this_base = helper<writable>::vtable<helper<readable>::vtable<BaseVTable>>;
-    template<typename T>
-    void bind()
-    {
-      this->this_base::template bind<T>();
-    }
+    API<view> _view;
+  };
+};
+struct readwritable {
+  readwritable() = delete;
+  ~readwritable() = delete;
+  readwritable &operator=(const readwritable &) = delete;
+  friend struct archetype::helper<readwritable>;
+  template <typename T>
+  struct check : std::integral_constant<bool, writable::check<T>::value &&
+                                                  readable::check<T>::value> {};
 
-    public:
-    template<typename T>
-    static vtable * make_vtable()
-    {
+protected:
+  template <typename BaseVTable = archetype::vtable_base>
+  struct vtable : public archetype::helper<writable>::vtable<
+                      archetype::helper<readable>::vtable<BaseVTable>> {
+    using this_base = archetype::helper<writable>::vtable<
+        archetype::helper<readable>::vtable<BaseVTable>>;
+    template <typename T> void bind() { this->this_base::template bind<T>(); }
+    template <typename T> static vtable *make_vtable() {
       static vtable<BaseVTable> vtablet;
       vtablet.bind<T>();
-
       return &vtablet;
     }
   };
-
-```
-
-
-
-
-
-
-## Component structure:
-Almost all of the core functionality exists within the protected component that exists within the `basic_interface` struct. I'll start with a stripped down version, and explain how the functionality is build up. 
-
-The component itself is templated on a base class. It will inherit from a particular base, and stack its functionality on top without using any virtuals. All the component cares about is being able to access the `B::_obj` that is a `void *` protected member variable defined by the base class. This `B::_obj` is going to store a `void *` of the object that will get bound. 
-
-```cpp
-template <typename B = archetype::Base> 
-class component : public B {
+  template <typename BaseViewLayer = archetype::view_base<vtable<>>>
+  struct view_layer
+      : public archetype::helper<writable>::view_layer<
+            archetype::helper<readable>::view_layer<BaseViewLayer>> {
   protected:
-  using B::_obj;
+    using BaseViewLayer::_obj;
+    using BaseViewLayer::_vtbl;
+  };
+
+public:
+  struct view : public view_layer<> {
+    template <typename T> view(T &t) {
+      this->_obj = static_cast<void *>(&t);
+      this->_vtbl = vtable<>::make_vtable<T>();
+    }
+  };
+  template <template <typename> class API = archetype::identity> struct ptr {
+    template <typename T> ptr(T &t) : _view(t) {}
+    API<view> &operator*() { return &_view; }
+    const API<view> &operator*() const { return &_view; }
+    API<view> *operator->() { return &_view; }
+    const API<view> *operator->() const { return &_view; }
+
+  protected:
+    API<view> _view;
+  };
 };
 ```
 
-For the component to actully be useful, it needs to implement the interface that we've defined. It does this by implementing a `vtable` through function pointers and functions. In this case we have a protected function pointer: `int (*_func0_stub)(void *obj, const char *);` 
-
-```cpp
-template <typename B = archetype::Base> 
-class component : public B {
-  public:
-  int func0(const char *arg0) { return _func0_stub(_obj, arg0); }
-
-  protected:
-  int (*_func0_stub)(void *obj, const char *);
-  using B::_obj;
-};
-```
+The patterns.cpp file also contains a simplified, handwritten version of this example. 
